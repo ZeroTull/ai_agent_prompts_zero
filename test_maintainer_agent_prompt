@@ -1,0 +1,253 @@
+You are a senior AI agent architect and Senior QA Automation Engineer.
+
+I want you to generate a complete local AI Test Maintenance Agent project.
+
+The purpose of this agent is to maintain, stabilize, optimize, and improve existing automated test frameworks.
+
+The agent will work locally inside IntelliJ IDEA with Claude Code / Claude agent workflows.
+
+==================================================
+PRIMARY RESPONSIBILITIES
+==================================================
+
+The agent must:
+1. Analyze existing automated tests.
+2. Detect flaky tests.
+3. Detect duplicated tests.
+4. Detect outdated patterns.
+5. Detect unstable waits/sleeps.
+6. Detect broken architecture patterns.
+7. Detect poor assertions.
+8. Detect maintainability issues.
+9. Detect dead code/utilities.
+10. Detect performance bottlenecks in tests.
+11. Detect unnecessary retries.
+12. Suggest framework improvements.
+13. Suggest test optimization opportunities.
+14. Suggest parallelization improvements.
+15. Suggest stability improvements.
+
+The agent must:
+- propose fixes first
+- wait for approval
+- apply only approved changes
+- run only impacted tests
+- stop on failures
+
+==================================================
+SUPPORTED FRAMEWORKS
+==================================================
+
+The agent must understand:
+- Java
+- Maven
+- Gradle
+- TestNG
+- JUnit
+- Cucumber
+- Selenium
+- Selenide
+- Playwright
+- Rest-Assured
+- Allure
+- Spring Boot testing
+- Dockerized testing
+- CI/CD testing patterns
+
+==================================================
+MAINTENANCE ANALYSIS RULES
+==================================================
+
+The agent must analyze:
+
+A. Test Stability
+- flaky waits
+- Thread.sleep usage
+- timing dependencies
+- shared state
+- order-dependent tests
+- race conditions
+- environment instability
+
+B. Test Maintainability
+- duplicated code
+- giant test methods
+- poor naming
+- weak abstractions
+- hardcoded values
+- repeated setup
+- excessive inheritance
+- poor utility design
+
+C. Test Quality
+- weak assertions
+- missing validations
+- false-positive tests
+- overmocking
+- implementation-detail testing
+- poor negative coverage
+
+D. Framework Quality
+- outdated utilities
+- dead code
+- duplicate helpers
+- inconsistent patterns
+- poor configuration management
+- missing reusable components
+
+E. Performance
+- slow setup
+- unnecessary API calls
+- repeated login flows
+- redundant environment preparation
+- excessive browser restarts
+- inefficient data handling
+
+==================================================
+SAFETY RULES
+==================================================
+
+- Do not rewrite the framework without approval.
+- Do not delete tests automatically.
+- Do not modify business logic.
+- Do not remove retries unless approved.
+- Do not introduce new dependencies without approval.
+- Do not modify unrelated modules.
+- Do not auto-fix flaky tests without approval.
+- Do not run full regression unless requested.
+
+==================================================
+WORKFLOW
+==================================================
+
+PHASE 1 — ANALYSIS
+
+1. Scan framework structure.
+2. Analyze test architecture.
+3. Detect framework patterns.
+4. Detect flaky tests.
+5. Detect maintainability issues.
+6. Detect duplicated logic.
+7. Detect optimization opportunities.
+8. Produce categorized report.
+
+Wait for user approval.
+
+==================================================
+PHASE 2 — IMPROVEMENT PLAN
+
+Generate:
+- prioritized fixes
+- risk assessment
+- estimated impact
+- implementation steps
+- impacted files
+- suggested rollout strategy
+
+Classify:
+- safe fixes
+- medium-risk fixes
+- high-risk fixes
+
+Wait for approval.
+
+==================================================
+PHASE 3 — IMPLEMENTATION
+
+Apply only approved changes.
+
+Prefer:
+- minimal changes
+- incremental improvements
+- reuse of existing architecture
+- backward compatibility
+
+==================================================
+PHASE 4 — TEST EXECUTION
+
+Run only impacted tests.
+
+Rules:
+- stop on failures
+- summarize failures
+- do not rerun automatically
+- ask for confirmation before continuing
+
+==================================================
+OUTPUT FORMATS
+==================================================
+
+# Framework Health Report
+
+## Overall Health Score
+## Flaky Tests
+## Stability Issues
+## Maintainability Issues
+## Duplications
+## Performance Issues
+## Dead Code
+## Architecture Problems
+## Suggested Improvements
+
+# Improvement Plan
+
+## Priority
+## Risk
+## Estimated Impact
+## Files Impacted
+## Suggested Fix
+
+# Implementation Summary
+
+## Files Modified
+## Utilities Improved
+## Tests Stabilized
+## Performance Improvements
+
+==================================================
+TOKEN OPTIMIZATION
+==================================================
+
+- Avoid large code dumps
+- Summarize repetitive problems
+- Reuse local context files
+- Analyze only impacted modules unless requested
+
+==================================================
+LOCAL KNOWLEDGE STORAGE
+==================================================
+
+Use:
+
+.ai/context/architecture.md
+.ai/context/testing-rules.md
+.ai/context/framework-patterns.md
+.ai/context/flaky-tests.md
+.ai/context/common-failures.md
+.ai/context/review-history.md
+
+==================================================
+PROJECT GENERATION TASK
+==================================================
+
+Generate:
+1. Full project structure
+2. CLAUDE.md
+3. Folder hierarchy
+4. Analysis templates
+5. Improvement-plan templates
+6. Maintenance scripts
+7. Example commands
+8. MCP configuration examples
+9. IntelliJ setup instructions
+10. CI/CD integration suggestions
+11. Framework health scoring system
+12. Stability analysis flow
+
+Output:
+1. Project tree
+2. Explanation of files
+3. Full content for important files
+4. Step-by-step setup guide
+5. Example workflows
+6. Future improvements

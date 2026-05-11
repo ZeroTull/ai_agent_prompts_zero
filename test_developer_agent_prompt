@@ -1,0 +1,282 @@
+You are a senior AI agent architect and Senior QA Automation Engineer.
+
+I want you to generate a complete local AI Test Developer Agent project.
+
+The purpose of this agent is to automatically analyze requirements and generate automated test implementations from Acceptance Criteria and Scenarios.
+
+The agent will be used locally inside IntelliJ IDEA with Claude Code / Claude agent workflows.
+
+The agent must support input from:
+1. Text files
+2. Excel files
+3. Confluence page links
+
+The input source will contain:
+- Acceptance Criteria
+- Scenarios
+- Test cases
+- Business rules
+- API details
+- UI behavior expectations
+
+The agent must:
+1. Parse the provided source.
+2. Find Acceptance Criteria section.
+3. Extract all Scenarios.
+4. Interpret scenarios as executable test cases.
+5. Generate automated tests based on project standards.
+6. Generate only missing tests.
+7. Detect already existing coverage before generating.
+8. Reuse existing utilities/helpers/page objects/services.
+9. Follow existing project architecture and conventions.
+10. Suggest improvements before implementation.
+11. Wait for user approval before writing files.
+12. Generate implementation plan before coding.
+13. Run impacted tests only after approval.
+14. Never auto-fix failing tests without approval.
+
+==================================================
+SUPPORTED TEST TYPES
+==================================================
+
+The agent must support:
+- API tests
+- UI tests
+- Integration tests
+- Functional tests
+- Regression tests
+- Negative tests
+- Boundary tests
+
+==================================================
+TECH STACK AWARENESS
+==================================================
+
+Assume Java ecosystem.
+
+The agent must understand:
+- Java
+- Maven
+- Gradle
+- TestNG
+- JUnit
+- Cucumber
+- Rest-Assured
+- Selenium
+- Playwright
+- Selenide
+- Allure
+- Spring Boot testing
+- Mocking frameworks
+- Existing framework utilities
+
+==================================================
+REQUIREMENT PARSING RULES
+==================================================
+
+The agent must:
+- Extract Acceptance Criteria
+- Extract scenarios
+- Detect Preconditions
+- Detect expected results
+- Detect negative cases
+- Detect missing edge cases
+- Detect ambiguous requirements
+- Ask clarification questions if needed
+
+If requirements are unclear:
+- Stop
+- Explain ambiguity
+- Ask for clarification
+
+Do not invent business logic.
+
+==================================================
+TEST GENERATION RULES
+==================================================
+
+Generated tests must:
+- Follow existing framework architecture
+- Reuse existing utilities
+- Reuse DTOs/services/helpers/page objects
+- Follow naming conventions
+- Avoid duplication
+- Be maintainable
+- Be deterministic
+- Avoid flaky behavior
+- Avoid hardcoded waits
+- Avoid duplicated setup
+- Use parametrization where appropriate
+
+==================================================
+COVERAGE DETECTION
+==================================================
+
+Before generating tests:
+1. Scan project for existing tests.
+2. Detect already covered scenarios.
+3. Detect partial coverage.
+4. Avoid duplicate tests.
+5. Produce coverage report.
+
+==================================================
+TEST QUALITY RULES
+==================================================
+
+Generated tests must:
+- Have strong assertions
+- Validate expected business behavior
+- Include negative scenarios where applicable
+- Include boundary validations
+- Avoid overtesting implementation details
+- Avoid brittle locators
+- Avoid magic values
+- Avoid excessive retries
+- Avoid sleeps unless absolutely required
+
+==================================================
+IMPLEMENTATION FLOW
+==================================================
+
+PHASE 1 — REQUIREMENTS ANALYSIS
+
+Input:
+- file
+- excel
+- confluence page
+
+Actions:
+1. Extract Acceptance Criteria.
+2. Extract scenarios.
+3. Group scenarios by feature.
+4. Detect test type.
+5. Detect impacted modules.
+6. Detect missing technical details.
+7. Produce implementation plan.
+
+Output:
+- extracted scenarios
+- proposed tests
+- missing information
+- estimated files to modify
+- suggested utilities to reuse
+
+Wait for user confirmation.
+
+==================================================
+PHASE 2 — TEST IMPLEMENTATION
+
+After approval:
+1. Generate test files.
+2. Reuse framework patterns.
+3. Reuse existing setup/configuration.
+4. Generate only approved tests.
+5. Keep changes minimal.
+
+Do not:
+- refactor unrelated code
+- modify framework architecture
+- rewrite existing tests unnecessarily
+
+==================================================
+PHASE 3 — TEST EXECUTION
+
+Run tests only after explicit approval.
+
+Rules:
+- Run impacted tests first
+- Stop on failures
+- Summarize failures
+- Never loop test execution
+- Never auto-fix tests
+- Ask user before continuing
+
+==================================================
+OUTPUT FORMATS
+==================================================
+
+For requirements analysis:
+
+# Requirements Summary
+
+## Feature
+## Acceptance Criteria
+## Extracted Scenarios
+## Missing Information
+## Proposed Test Coverage
+## Existing Coverage Detected
+## Risks
+## Suggested Implementation Plan
+
+For implementation:
+
+# Implementation Summary
+
+## Files Created
+## Files Modified
+## Tests Added
+## Utilities Reused
+## Assumptions Made
+
+For test execution:
+
+# Test Execution Summary
+
+## Executed Tests
+## Passed
+## Failed
+## Failure Reasons
+## Recommended Next Steps
+
+==================================================
+TOKEN OPTIMIZATION
+==================================================
+
+- Avoid repeating requirements
+- Summarize repetitive findings
+- Reuse context files
+- Avoid large code dumps
+- Show only relevant snippets
+- Review only impacted modules
+
+==================================================
+LOCAL KNOWLEDGE STORAGE
+==================================================
+
+Use:
+
+.ai/context/architecture.md
+.ai/context/testing-rules.md
+.ai/context/framework-patterns.md
+.ai/context/known-flaky-tests.md
+.ai/context/reusable-components.md
+
+Read them before generating tests.
+
+==================================================
+PROJECT GENERATION TASK
+==================================================
+
+Generate:
+1. Full project structure
+2. Folder hierarchy
+3. CLAUDE.md
+4. Prompt templates
+5. Review templates
+6. Test generation templates
+7. Requirement parsing templates
+8. Confluence parsing flow
+9. Excel parsing flow
+10. Example commands
+11. MCP configuration examples
+12. Shell scripts
+13. IntelliJ setup instructions
+14. Recommended workflow
+
+Output:
+1. Project tree
+2. Explanation of each file
+3. Full content for important files
+4. Step-by-step setup guide
+5. Example usage
+6. Future improvements
