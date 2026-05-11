@@ -1,0 +1,321 @@
+You are a senior AI platform architect and Claude Code workflow engineer.
+
+I already have a local AI-agent ecosystem inside IntelliJ IDEA.
+
+Your task is to generate and/or refactor the project into a SKILL-BASED architecture exactly following the structure style below.
+
+IMPORTANT:
+This is NOT a generic markdown-agent setup.
+
+I want a REAL reusable skill architecture using:
+
+.agents/
+├── configs/
+├── skills/
+│   ├── skill-name/
+│   │   ├── references/
+│   │   ├── scripts/
+│   │   ├── templates/
+│   │   ├── README.md
+│   │   └── SKILL.md
+
+The structure and organization style MUST match this format.
+
+==================================================
+TARGET ARCHITECTURE STYLE
+==================================================
+
+Create/update this structure:
+
+.agents/
+├── configs/
+│   ├── templates/
+│   ├── athena-db-config.json
+│   ├── atlassian-token.json
+│   ├── gitlab-token.json
+│   └── README.md
+│
+├── skills/
+│   ├── pr-review-agent/
+│   │   ├── references/
+│   │   ├── scripts/
+│   │   ├── templates/
+│   │   ├── README.md
+│   │   └── SKILL.md
+│   │
+│   ├── test-developer/
+│   │   ├── references/
+│   │   ├── scripts/
+│   │   ├── templates/
+│   │   ├── README.md
+│   │   └── SKILL.md
+│   │
+│   ├── test-maintainer/
+│   │   ├── references/
+│   │   ├── scripts/
+│   │   ├── templates/
+│   │   ├── README.md
+│   │   └── SKILL.md
+│   │
+│   ├── orchestrator/
+│   └── shared/
+│
+└── README.md
+
+==================================================
+IMPORTANT RULES
+==================================================
+
+1. Actually CREATE physical folders/files.
+2. Do NOT only print examples in chat.
+3. Refactor/update existing files if already present.
+4. Preserve existing useful content.
+5. Use production-grade organization.
+6. Use token-efficient modular structure.
+7. Keep skills fully isolated and reusable.
+
+==================================================
+SKILL STRUCTURE REQUIREMENTS
+==================================================
+
+Every skill MUST contain:
+
+references/
+- reusable knowledge
+- best practices
+- classification rules
+- edge-case matrices
+- architecture notes
+- failure catalogs
+
+scripts/
+- helper scripts
+- execution scripts
+- automation helpers
+- validation scripts
+
+templates/
+- report templates
+- implementation templates
+- execution templates
+- summary templates
+- bug report templates
+
+README.md
+- usage instructions
+- examples
+- workflow
+- supported inputs
+- limitations
+
+SKILL.md
+- core runtime instructions
+- execution rules
+- behavior
+- orchestration logic
+- safety rules
+- token optimization rules
+
+==================================================
+SKILLS TO GENERATE
+==================================================
+
+Generate/update these skills:
+
+1. pr-review-agent
+2. test-developer
+3. test-maintainer
+4. api-test-developer
+5. api-test-maintainer
+6. scale-test-developer
+7. code-reviewer
+8. bug-reporter
+9. test-data-manager
+10. merge-request-creator
+11. k8s-observer
+12. orchestrator
+13. shared
+
+==================================================
+PR-REVIEW-AGENT REQUIREMENTS
+==================================================
+
+Must support:
+- Azure DevOps PR review
+- MCP integration
+- Java review
+- performance review
+- security review
+- testing review
+- architecture review
+- severity classification
+- confidence classification
+- fix proposal flow
+- approval flow
+- impacted test execution
+
+==================================================
+TEST-DEVELOPER REQUIREMENTS
+==================================================
+
+Input sources:
+- text files
+- excel files
+- confluence links
+
+Must:
+- parse Acceptance Criteria
+- parse Scenarios
+- generate automated tests
+- detect existing coverage
+- reuse framework utilities
+- avoid duplicate tests
+- propose implementation plan
+- wait for approval before changes
+
+==================================================
+TEST-MAINTAINER REQUIREMENTS
+==================================================
+
+Must:
+- detect flaky tests
+- detect unstable waits
+- detect duplicated tests
+- detect framework issues
+- detect dead code
+- detect weak assertions
+- detect performance issues
+- improve maintainability
+
+==================================================
+ORCHESTRATOR REQUIREMENTS
+==================================================
+
+Must:
+- route tasks between skills
+- avoid unnecessary context loading
+- recommend next actions
+- coordinate workflows
+- optimize token usage
+
+==================================================
+SHARED SKILL REQUIREMENTS
+==================================================
+
+shared/ should contain:
+- common templates
+- shared context
+- reusable references
+- reusable scripts
+- global standards
+- architecture rules
+- naming conventions
+
+==================================================
+CONFIG REQUIREMENTS
+==================================================
+
+configs/ should contain:
+- token configs
+- MCP configs
+- external integration configs
+- templates
+- environment examples
+
+Generate example config files:
+- atlassian-token.json
+- gitlab-token.json
+- ado-config.json
+- mcp-config.json
+
+Use placeholders only.
+Do NOT use real secrets.
+
+==================================================
+README REQUIREMENTS
+==================================================
+
+Every skill README.md must contain:
+- purpose
+- supported inputs
+- examples
+- execution flow
+- dependencies
+- limitations
+- best practices
+- troubleshooting
+
+==================================================
+SKILL.MD REQUIREMENTS
+==================================================
+
+Every SKILL.md must define:
+- role
+- responsibilities
+- workflow
+- boundaries
+- safety rules
+- stop conditions
+- output formats
+- token optimization rules
+- orchestration behavior
+
+==================================================
+TOKEN OPTIMIZATION
+==================================================
+
+Implement:
+- modular instructions
+- reusable references
+- lazy context loading
+- isolated skills
+- minimized duplicated prompts
+- lightweight orchestration
+
+==================================================
+FUTURE MCP SUPPORT
+==================================================
+
+Prepare the structure for:
+- MCP tools
+- MCP skill routing
+- MCP orchestration
+- distributed AI workflows
+
+Do NOT implement full MCP server logic yet.
+
+==================================================
+OUTPUT REQUIREMENTS
+==================================================
+
+Actually create/update:
+- folders
+- markdown files
+- templates
+- scripts
+- configs
+- references
+
+Do NOT stop after generating the tree.
+
+Populate all important files with meaningful starter content.
+
+==================================================
+FINAL GOAL
+==================================================
+
+The result should look and behave like a professional local AI skill ecosystem similar to enterprise Claude/Cursor/Copilot internal skill systems.
+
+The structure must visually resemble:
+
+.agents/
+  configs/
+  skills/
+    skill-name/
+      references/
+      scripts/
+      templates/
+      README.md
+      SKILL.md
+
+Use this exact organizational philosophy everywhere.
