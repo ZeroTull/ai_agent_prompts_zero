@@ -1,0 +1,42 @@
+**Model tier:** top-tier reasoning, used sparingly (e.g. Sonnet 5) — one-time, security-critical architecture design, not a recurring call. **Trigger frequency:** once; re-run only if the credential storage approach changes.
+
+Design and implement an integration between our QA automation agent system and Azure DevOps (ADO). We do not currently have a secrets manager — credentials are stored in local config files on disk. Work within that constraint, but the AI/agents must NEVER read, open, log, or gain tool access to any file containing credentials, tokens, or passwords, under any circumstance.
+
+## Phase 1 — Isolation Design (do this before writing any integration code)
+Propose an architecture where:
+- The credential-bearing config file lives in a location that is explicitly excluded from every tool, file-search, file-read, or directory-scan capability the AI agents have (e.g., outside the agent's working directory / repo root, in a path never passed to the agent's file tools, and excluded via deny-lists from any "scan the project" step).
+- A small wrapper process/script — written once, reviewed by a human, and NOT something the agent regenerates or edits — is the only thing that ever reads the config file. It reads the credential at runtime, uses it to authenticate to ADO, and discards it from its own output.
+- The agent only ever talks to this wrapper via a narrow interface (CLI command, local API, or function call) that takes structured, credential-free requests ("get work items tagged X," "create bug with fields Y") and returns credential-free responses.
+- The wrapper strips/redacts anything credential-shaped (tokens, PATs, auth headers, connection strings) from its responses, logs, and error messages before they can reach the agent's context — including stack traces, which often leak config file contents.
+- Confirm explicitly: at no point does the agent's prompt, memory, generated code, or tool output ever contain the raw contents of the config file, even transiently.
+
+## Phase 2 — Guardrails specific to config-file storage (since we lack a real secrets manager)
+- The wrapper should be the ONLY code path with read permission on the config file at the OS/filesystem level, if the environment allows setting file permissions — recommend this even if not yet implemented.
+- The agent must never be asked to "check the config" or "read the .env file" for debugging — build a separate, redacted diagnostic command in the wrapper for that instead.
+- Any repo-scanning phase (like the discovery phase in the QA agent build) must explicitly skip the config file's path/name/pattern by name, not just by convention.
+- Flag this setup as an interim measure and note, as output, what moving to a real secrets manager (Key Vault, Vault, etc.) would improve, so it is documented for later.
+
+## Phase 3 — Integration Scope
+Implement integration for:
+- Reading work items / test cases relevant to QA scope
+- Creating and updating bugs or test results from agent findings
+- Reading pipeline/build status to trigger or gate QA agent runs
+(Adjust based on actual need — do not request broader ADO scope than this.)
+
+## Phase 4 — Implementation Requirements
+- Build the wrapper as a standalone script/service, not agent-editable at runtime.
+- Least-privilege ADO permission scope for the credential in use.
+- Input validation on the wrapper so the agent can't pass parameters that reach broader/admin API paths.
+- Rate limiting and call auditing so agent activity against ADO is traceable.
+
+## Phase 5 — Verification
+Before this is considered done, show:
+1. The exact file path(s) containing secrets, and proof (config, deny-list, tool scope) that the agent's tools cannot reach them.
+2. The full request path (agent → wrapper → ADO), marking exactly where the credential is read and confirming the agent never touches that step.
+3. A sample redacted wrapper response, to confirm no sensitive fields leak through.
+4. A short list of residual risks specific to storing secrets in local files (e.g., accidental commits, agent suggesting "let me just check the config" during debugging, backups/logs that copy the file).
+
+If at any point the AI is about to read, open, or reference the credential-bearing file directly, it must stop and ask a human instead.
+
+## Relationship to the rest of the system
+This wrapper pattern — isolate the sensitive resource, expose only a narrow redacted interface, never let an agent touch the raw source — is the template for sensitive-data handling system-wide, not just ADO credentials. 03_agent_orchestrator_prompt enforces the same principle at the front door for every request regardless of source, including a human pasting sensitive content directly into a chat message, so no agent in this system ever reads sensitive data, by design, not by convention.

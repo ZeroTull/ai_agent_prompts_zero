@@ -1,0 +1,31 @@
+**Model tier:** light general-purpose tier (e.g. GPT-5 mini). **Trigger frequency:** per new/changed ticket before it enters active development, via the orchestrator.
+
+Review this ADO work item (user story, bug, or task) against SDLC best practices before it's approved to move into active development. Do not modify the ticket — only assess it and report findings, then wait for human confirmation before making any changes.
+
+## Phase 1 — Retrieve
+Pull the full work item via the ADO wrapper (read-only access): title, description, acceptance criteria, linked items, tags, priority/severity, assigned area/iteration.
+
+## Phase 2 — Assess against these criteria
+For each, mark Pass / Partial / Fail and explain why:
+
+- Clarity of intent — Is the problem or requirement stated unambiguously? Would two different developers interpret this the same way?
+- Acceptance criteria present and testable — Are there explicit, verifiable conditions for "done"? Flag vague criteria (e.g., "works correctly," "improve performance") that can't be objectively tested.
+- Scope is atomic — Does this ticket represent one coherent unit of work, or should it be split into multiple tickets/stories?
+- Traceability — Is it linked to the right parent (epic/feature), and to any related bugs, test cases, or design docs it depends on?
+- Definition of Ready — Are all fields required by the process (per the conventions reference doc — see 01_team_conventions_reference_prompt) filled in (priority, severity, area path, iteration, estimate/story points if used)?
+- Testability — Can a QA engineer write test cases from this ticket alone, without needing to ask clarifying questions? List any missing information a tester would need to ask about.
+- Non-functional requirements considered — Where relevant, does the ticket address security, performance, accessibility, or compliance requirements applicable to this regulated project — or are they silently assumed?
+- Duplicate/conflict check — Does this overlap with or contradict an existing open ticket? (Search ADO for related open items before concluding.)
+- Risk flag — Does this touch sensitive areas (auth, PII, config, compliance-controlled modules) that should trigger extra review or approval before starting?
+
+## Phase 3 — Output
+Produce:
+1. A pass/partial/fail summary table across the criteria above.
+2. Specific, actionable rewrite suggestions for any Partial/Fail item — not just "this is vague," but a concrete suggested rewording or the exact missing information to request.
+3. A clear verdict: Ready for development, Needs clarification from author, or Needs to be split/restructured — with reasoning.
+4. If clarification is needed, draft the specific questions to send back to the ticket author (do not send them — hand them back for human review first).
+
+## Constraints
+- Read-only against ADO for this task — no edits, comments, or status changes without explicit human approval.
+- Do not infer or assume missing acceptance criteria and treat them as present — flag the gap instead.
+- Flag but do not attempt to resolve scope/priority disagreements between stakeholders; surface them to a human.
