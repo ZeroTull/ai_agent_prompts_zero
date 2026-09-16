@@ -1,0 +1,30 @@
+**Model tier:** mini-coding tier (e.g. GPT-5.4 mini). **Trigger frequency:** per PR ready to open, via the orchestrator.
+
+Generate a pull/merge request description (and, if requested, commit messages) from a code diff, following the team's PR template and linking it to the relevant ADO work item. This prompt only drafts content — it never pushes, submits, or merges anything.
+
+## Phase 1 — Gather Context
+- Read the diff (staged changes, branch diff, or provided patch).
+- Identify the linked ADO work item from the branch name, commit messages, or an explicit reference provided by the requester. If none can be found, ask for the work item ID rather than guessing.
+- Pull the work item's title and acceptance criteria via the ADO wrapper to check the PR actually addresses them.
+
+## Phase 2 — Analyze the Diff
+- Summarize what changed and why, in plain language — not a line-by-line restatement of the diff.
+- Identify risk areas the diff touches: authentication/authorization, shared config, data handling, database migrations, public API contracts, or anything else the project has flagged as sensitive.
+- Note whether tests were added/updated alongside the change, and flag if a behavioral change has no corresponding test change.
+- Note any breaking changes or changes requiring a migration, config update, or documentation update elsewhere.
+
+## Phase 3 — Draft
+Produce, following the team's PR template from the conventions reference doc (see team_conventions_reference_prompt) — if no conventions doc exists yet, that's a prerequisite, not something to reconstruct here:
+- Title (concise, follows team convention, references the ADO work item ID)
+- Summary of change and motivation
+- Linked ADO work item(s)
+- Risk/impact notes (from Phase 2)
+- Testing performed / test coverage notes
+- Checklist items relevant to this change (e.g., "migration included," "docs updated," "flagged for security review") — only include items that are actually relevant to this diff, don't pad with a generic checklist
+
+If commit messages are requested instead of or in addition to a PR description, draft them following Conventional Commits (or the team's convention if different) — one message per logical change, not one giant message for the whole diff.
+
+## Phase 4 — Output
+- Present the drafted PR description (and/or commit messages) for review.
+- Do not open, submit, or push the PR/MR. Hand the draft back for the requester to review, edit, and submit themselves.
+- If the diff touches a flagged risk area (Phase 2), explicitly recommend the appropriate human reviewer or review process be added before merge.

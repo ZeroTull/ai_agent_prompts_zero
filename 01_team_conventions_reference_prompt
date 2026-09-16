@@ -1,0 +1,35 @@
+**Model tier:** light general-purpose tier (e.g. GPT-5 mini). **Trigger frequency:** rare — initial build, then periodic (e.g. quarterly) re-confirmation.
+
+Create a single shared "conventions" reference document that every other agent/prompt in this system reads from, so test cases, PR descriptions, PR reviews, and bug tickets stay consistent regardless of who runs the AI. This prompt does not generate work artifacts itself — it generates the shared source of truth those other prompts should defer to.
+
+## Phase 1 — Gather Existing Conventions
+Ask for, or pull if accessible, whatever documented conventions already exist:
+- Coding style guide / linter config
+- ADO field conventions (how severity, priority, area path, tags are used on this project)
+- PR/MR template and definition of done
+- Test case naming and structure conventions
+- Bug severity/priority taxonomy and what qualifies for each level
+- Any compliance/regulatory constraints specific to this project that other agents need to be aware of when drafting anything (e.g., what can/can't appear in a ticket description, data handling rules)
+- Any existing data classification / sensitivity policy (legal/security may already have one — don't invent one if it does)
+
+Where no documented convention exists for one of these, ask directly rather than inventing one — a fabricated convention that later conflicts with an undocumented team habit causes more inconsistency, not less.
+
+## Phase 2 — Consolidate
+Produce a single structured reference document covering:
+1. Coding style summary (or a pointer to the canonical linter/formatter config — don't duplicate it if it already exists in a machine-readable form).
+2. ADO field conventions: exact definitions for each severity/priority level, required fields per work item type, area path structure, standard tags.
+3. PR/MR conventions: required sections, title format, checklist items, definition of done.
+4. Test case conventions: naming pattern, required fields, test type taxonomy.
+5. Bug ticket conventions: title format, required repro-step structure, severity taxonomy with concrete examples of what qualifies for each level.
+6. Data sensitivity & isolation policy: a concrete classification of what counts as sensitive in this environment (credentials/tokens/connection strings, PII, regulated/customer data, anything else the project restricts) — specific enough that the orchestrator's intake guard (see agent_orchestrator_prompt) can pattern-match on it, not just "don't include PII" but what PII looks like here (field names, formats, examples to catch). This is enforced at intake, before any agent sees a request, not only as output redaction — no agent in this system reads sensitive data, even if a human pastes it directly.
+7. Regulatory/compliance notes: anything every agent must respect regardless of task (e.g., "flag any change touching module X for compliance review").
+
+## Phase 3 — Output
+1. The consolidated reference document, in a format that can be pasted into or referenced by the other prompts in this system (agent orchestrator, ecosystem/skill builder, test case generation, test developer, test maintainer, PR description generation, PR review, bug ticket creation, ticket SDLC review, CI failure diagnoser, flaky test triager, feedback calibration loop).
+2. Note that the existing Java/IntelliJ agents in this repo already use a per-skill local-knowledge convention (`.ai/context/*.md`, e.g. `.ai/context/coding-standards.md`, `.ai/context/testing-rules.md`) — that's a reasonable concrete home for this document too (e.g. `.ai/context/conventions.md`), so the two schemes align instead of competing.
+2. A short list of conventions that were assumed or defaulted because no existing standard was found — flagged explicitly so a human can confirm or correct them.
+3. A recommendation on where this document should live (e.g., a shared repo file, a wiki page) so it stays a single source of truth rather than being copy-pasted and drifting across prompts.
+
+## Constraints
+- Do not silently resolve conflicts between two existing but contradictory conventions (e.g., two different bug severity definitions found in different places) — surface the conflict and ask which one is authoritative.
+- This document should be reviewed and re-confirmed periodically (e.g., quarterly, or whenever the team's process changes) rather than treated as permanently fixed.

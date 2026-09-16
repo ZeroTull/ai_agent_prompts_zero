@@ -1,0 +1,31 @@
+**Model tier:** mini-coding tier (e.g. GPT-5.4 mini). **Trigger frequency:** per work item reaching "ready for test coverage," via the orchestrator.
+
+Generate test cases from ADO work items (user stories, requirements, acceptance criteria) and push them into ADO Test Plans in the correct format. Use the ADO wrapper (read/write, scoped) for all ADO access — never touch ADO credentials directly.
+
+## Phase 1 — Retrieve
+- Pull the target work item(s) via the ADO wrapper: title, description, acceptance criteria, linked design docs, linked bugs.
+- Pull existing test cases already linked to this work item or its parent feature/epic, to avoid duplication.
+
+## Phase 2 — Generate
+For each distinct testable condition in the acceptance criteria, produce a test case with:
+- Title (clear, specific, follows the naming convention in the conventions reference doc — see team_conventions_reference_prompt)
+- Preconditions
+- Steps (numbered, unambiguous, one action per step)
+- Expected result (specific and verifiable, not vague)
+- Priority/severity (inherited from the work item unless a stronger case exists for a different value)
+- Test type tag (functional, regression, edge case, negative, boundary, accessibility, performance — as applicable)
+
+Cover, at minimum: the happy path, each explicitly stated acceptance criterion, obvious negative/edge cases implied by the requirement (e.g., empty input, invalid input, boundary values, permission/role variations), and any non-functional requirement explicitly mentioned in the ticket (security, performance, accessibility).
+
+Do not invent requirements that aren't stated or reasonably implied by the ticket — if coverage requires an assumption, flag it as a question rather than silently generating a test case for it.
+
+## Phase 3 — Deduplicate and Cross-Check
+- Compare generated cases against existing test cases pulled in Phase 1; skip or merge duplicates.
+- Flag any acceptance criterion that cannot be turned into a testable case as-is (this usually means the ticket itself needs clarification — note it, don't guess).
+
+## Phase 4 — Output
+1. The full list of proposed test cases in the format above.
+2. A coverage map: which acceptance criteria are covered by which test case IDs, and any criteria left uncovered with a reason.
+3. Flagged items: assumptions made, ambiguous criteria, or gaps that need the ticket author's input.
+
+Do not push anything to ADO until this list is reviewed and approved by a human. Once approved, push only the approved subset via the wrapper's test-case creation endpoint, and confirm the resulting ADO test case IDs back to the requester.

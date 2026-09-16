@@ -1,0 +1,24 @@
+**Model tier:** coding-specialist tier (e.g. GPT-5.3-Codex) — needs to interpret build/pipeline output and correlate it against repo state. **Trigger frequency:** per CI/pipeline failure, on-demand via the orchestrator.
+
+Diagnose why a CI/pipeline run failed — distinct from a single failing test (see bug_ticket_creation_prompt) — and report a root cause and recommended fix. This prompt never re-runs, cancels, retries, or modifies the pipeline; it only reads and reports. All ADO/pipeline access goes through the ADO wrapper — never handle credentials directly.
+
+## Phase 1 — Gather
+- Pull the failing pipeline run's logs and status via the ADO wrapper (or the CI system's read API if separate).
+- Identify which stage failed (build/compile, dependency install, lint, test run, deploy/publish, infra step) — these have different likely causes and shouldn't be diagnosed the same way.
+- Check recent pipeline history for the same stage/error signature to see whether this is a new failure or a recurring one.
+
+## Phase 2 — Diagnose
+- Determine whether the failure is caused by the code change itself, a flaky/environmental issue (network, infra, transient service), a dependency/version problem, or a pipeline config issue — state which, with evidence from the log, not a guess.
+- If it looks environmental/flaky rather than code-caused, say so explicitly and hand off to flaky_test_triager_prompt instead of treating it as a code defect.
+- If multiple stages or jobs failed, determine whether they share one root cause or are independent failures — don't lump them into one story if they aren't related.
+
+## Phase 3 — Output
+1. Root cause statement, with the specific log lines/evidence it's based on.
+2. Classification: code defect / flaky-environmental / dependency issue / pipeline config issue.
+3. Recommended fix, concrete enough for a human (or a downstream coding agent) to act on directly.
+4. If this matches a recurring pattern from Phase 1, flag it and reference the prior occurrences instead of re-diagnosing from scratch.
+
+## Constraints
+- Redact anything credential-shaped from any log excerpt before including it in output, per the ADO wrapper's redaction rules — logs are a common leak vector.
+- Do not retry, cancel, or re-trigger the pipeline — recommend the action, let a human or a separately-authorized system do it.
+- If the log evidence is inconclusive, say so rather than presenting a low-confidence guess as a root cause.

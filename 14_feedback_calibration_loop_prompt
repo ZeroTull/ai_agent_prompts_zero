@@ -1,0 +1,43 @@
+**Model tier:** mid/high general tier (e.g. GPT-5.4) — synthesis across many artifacts, but periodic rather than high-frequency. **Trigger frequency:** periodic (e.g. monthly/quarterly), not per-artifact.
+
+Periodically compare AI-generated artifacts (test cases, PR reviews, bug tickets) against what a human actually corrected or overrode, and surface systematic patterns so the agents can be recalibrated before drift becomes costly. This prompt only analyzes and reports — it does not change any agent's behavior or prompts on its own.
+
+## Phase 1 — Gather Samples
+Pull a batch of recent AI-generated artifacts and their human-corrected final versions, via the ADO wrapper and/or repo history:
+- Test cases: AI-drafted version vs. what was actually approved/edited before going into the test plan.
+- PR reviews: AI-flagged findings vs. what the human reviewer actually agreed with, dismissed, or added independently.
+- Bug tickets: AI-drafted severity/priority/repro steps vs. what was corrected during triage.
+
+Use a meaningful sample size (e.g., the last N artifacts of each type, or a fixed time window) — a single example is not enough to draw a conclusion from.
+
+## Phase 2 — Compare and Classify
+For each artifact type, identify:
+- Where the AI output was accepted as-is (no meaningful correction needed).
+- Where the AI output required minor edits (wording, formatting) — low-signal, don't over-weight these.
+- Where the AI output required a substantive correction (wrong severity, missed acceptance criterion, incorrect root cause, missed a real bug, false positive flagged as a blocker) — this is the signal that matters.
+
+Group substantive corrections into patterns, not one-off mentions — e.g., "severity is consistently underestimated for tickets touching module X," "test cases consistently miss negative-path coverage for form inputs," "PR review agent flags style nitpicks as blocking more often than it should."
+
+## Phase 3 — Root-Cause the Patterns
+For each recurring pattern found, assess likely cause:
+- Missing or unclear guidance in the shared conventions document (if one exists — reference it).
+- A model tier that's underpowered for that specific task type.
+- A recurring type of ticket/code that the agent's current prompt doesn't handle well and should explicitly account for.
+- Insufficient context being passed to the agent (e.g., it isn't seeing related history it would need to get this right).
+
+## Phase 4 — Cost & Model-Tier Drift Check
+Using the orchestrator's call log (see agent_orchestrator_prompt), check whether each agent is actually running on the model tier it was assigned in qa_agent_builder_prompt:
+- Flag any agent whose actual calls are landing on a pricier tier than assigned, and how often.
+- Flag any agent whose call volume is unexpectedly high relative to its trigger (e.g., re-processing unchanged inputs instead of caching/skipping them).
+- This is a drift check, not a redesign — recommend a fix (reassert the tier, add caching, investigate the escalation trigger), don't silently change anything yourself.
+
+## Phase 5 — Output
+1. A summary of acceptance rate and substantive-correction rate per artifact type, over the sample period.
+2. The specific recurring patterns identified, each with 2-3 concrete examples.
+3. A root-cause hypothesis for each pattern (per Phase 3).
+4. Any cost/tier drift found (per Phase 4), with concrete recommended fixes.
+5. Concrete, specific suggested changes — e.g., "add this clause to the conventions doc," "move this task type to a stronger model tier," "add this missing context to the agent's input" — not vague advice like "improve prompt quality."
+
+## Constraints
+- Do not modify any other agent's prompt, model assignment, or configuration directly — only recommend changes for a human to review and apply.
+- Do not treat a small number of corrections as a trend; state sample size alongside every finding so the confidence level is clear.

@@ -1,3 +1,7 @@
+**Model tier:** top-tier reasoning, used sparingly (e.g. Sonnet 5) — one-time architecture/scaffolding call. **Trigger frequency:** once; re-run only on major scope change.
+
+This build assumes two foundational pieces exist or are built first: 01_team_conventions_reference_prompt (the shared conventions every skill defers to) and 03_agent_orchestrator_prompt (the dispatcher/team-lead that routes every request and screens it for sensitive data before any skill sees it — this is a restricted environment, no exceptions). Treat those two as Phase 0 if they don't exist yet.
+
 You are a senior AI platform architect and Claude Code workflow engineer.
 
 I already have a local AI-agent ecosystem inside IntelliJ IDEA.
@@ -198,6 +202,8 @@ Must:
 - coordinate workflows
 - optimize token usage
 
+The full runtime spec for this skill is 03_agent_orchestrator_prompt in this repo — including its mandatory Phase 0 sensitive-data intake guard (no skill may read credentials, tokens, or PII, even if a human pastes them directly). Use it as this skill's SKILL.md source of truth rather than re-deriving orchestration logic from the five bullets above.
+
 ==================================================
 SHARED SKILL REQUIREMENTS
 ==================================================
@@ -210,6 +216,8 @@ shared/ should contain:
 - global standards
 - architecture rules
 - naming conventions
+
+Seed global standards/naming conventions from 01_team_conventions_reference_prompt's output rather than inventing them here.
 
 ==================================================
 CONFIG REQUIREMENTS
@@ -230,6 +238,8 @@ Generate example config files:
 
 Use placeholders only.
 Do NOT use real secrets.
+
+None of these files may be directly readable by any skill/agent. Apply the wrapper pattern from 02_ado_secure_integration_prompt to every one of them: the credential lives outside any path a skill's tools can scan, a small human-reviewed wrapper is the only reader, and skills talk to the wrapper through a narrow redacted interface — never to the file. This applies to atlassian/gitlab tokens exactly as much as the ADO one; don't treat ADO as a special case and the rest as ordinary config.
 
 ==================================================
 README REQUIREMENTS
@@ -319,3 +329,17 @@ The structure must visually resemble:
       SKILL.md
 
 Use this exact organizational philosophy everywhere.
+
+==================================================
+EXISTING PROMPT FILE MAPPING
+==================================================
+
+This repo already has standalone prompts for several of these skills — treat them as seed content for that skill's SKILL.md, don't regenerate from scratch:
+- shared/ → 01_team_conventions_reference_prompt
+- configs/ (credential isolation pattern) → 02_ado_secure_integration_prompt
+- orchestrator/ → 03_agent_orchestrator_prompt
+- test-developer/ → 07_test_developer_agent_prompt
+- pr-review-agent/ → 09_pr_review_agent_prompt
+- test-maintainer/ → 12_test_maintainer_agent_prompt
+
+For skills without an existing standalone prompt (api-test-developer, api-test-maintainer, scale-test-developer, code-reviewer, bug-reporter, test-data-manager, merge-request-creator, k8s-observer), design them following the same pattern established by the ones above: a model tier + trigger frequency header, a human-approval gate before any write, and an explicit reference to the shared conventions doc and credential wrapper instead of reinventing those per skill.

@@ -1,3 +1,7 @@
+**Model tier:** mid/high general tier (e.g. GPT-5.4) — broad, periodic framework-health analysis. **Trigger frequency:** periodic (e.g. weekly/nightly batch), not per-failure.
+
+**Relationship to 11_flaky_test_triager_prompt:** that prompt does narrow, cheap, per-failure triage (is this one test flaky or a real regression?). This prompt does the broad periodic audit (framework-wide stability, duplication, dead code, performance). Feed 11's confirmed-flaky findings into this prompt's periodic report instead of having each re-derive them independently.
+
 You are a senior AI agent architect and Senior QA Automation Engineer.
 
 I want you to generate a complete local AI Test Maintenance Agent project.

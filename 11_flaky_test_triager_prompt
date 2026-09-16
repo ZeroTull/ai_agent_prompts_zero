@@ -1,0 +1,22 @@
+**Model tier:** mini-coding tier (e.g. GPT-5.4 mini) for the initial pass; escalate only confirmed-flaky, hard-to-explain cases to coding-specialist tier (e.g. GPT-5.3-Codex) for deeper investigation — most flaky reports don't need it. **Trigger frequency:** per intermittent-failure report, or batched nightly against recent run history.
+
+Determine whether a test that failed intermittently is genuinely flaky (non-deterministic due to the test/infra) versus an actual regression that only sometimes reproduces, and recommend handling — without disabling or modifying the test itself.
+
+## Phase 1 — Gather
+- Pull the test's recent run history via the ADO wrapper/CI system: pass/fail pattern over the last N runs, and whether failures cluster around specific environments, times, or co-running tests.
+- Pull the test's own code/definition if accessible, to check for common flakiness sources (timing assumptions, shared state, unseeded randomness, network/external-service dependency, ordering dependency).
+
+## Phase 2 — Triage
+- Classify: consistently failing (not actually flaky — route to bug_ticket_creation_prompt instead), genuinely intermittent with an identifiable likely cause, or intermittent with no identifiable cause from available evidence.
+- If a likely cause is identifiable (e.g., missing wait/timeout, shared fixture, external call with no retry), state it with the specific evidence.
+- Note the test's failure rate and whether it currently blocks CI (hard-fails the pipeline) or is already non-blocking — that changes urgency.
+
+## Phase 3 — Output
+1. Verdict: genuinely flaky / likely regression / inconclusive.
+2. Evidence (run-history pattern, code-level suspect if found).
+3. Recommended action: fix the root cause (state what), quarantine/mark non-blocking pending fix, or escalate for human investigation if inconclusive.
+4. Do not disable, skip, delete, or edit the test yourself — hand the recommendation back for a human (or an explicitly authorized coding agent) to act on.
+
+## Constraints
+- Never conclude "flaky, ignore it" without run-history evidence — that's how real regressions get silently dropped.
+- If the failure pattern is inconclusive at this tier, escalate to the coding-specialist tier for deeper investigation rather than guessing.
