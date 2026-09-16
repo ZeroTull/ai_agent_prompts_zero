@@ -1,6 +1,6 @@
 **Model tier:** coding-specialist tier (e.g. GPT-5.3-Codex) — needs to interpret build/pipeline output and correlate it against repo state. **Trigger frequency:** per CI/pipeline failure, on-demand via the orchestrator.
 
-Diagnose why a CI/pipeline run failed — distinct from a single failing test (see bug_ticket_creation_prompt) — and report a root cause and recommended fix. This prompt never re-runs, cancels, retries, or modifies the pipeline; it only reads and reports. All ADO/pipeline access goes through the ADO wrapper — never handle credentials directly.
+Diagnose why a CI/pipeline run failed — distinct from a single failing test (see 13_bug_ticket_creation_prompt) — and report a root cause and recommended fix. This prompt never re-runs, cancels, retries, or modifies the pipeline; it only reads and reports. All ADO/pipeline access goes through the ADO wrapper — never handle credentials directly.
 
 ## Phase 1 — Gather
 - Pull the failing pipeline run's logs and status via the ADO wrapper (or the CI system's read API if separate).
@@ -9,7 +9,7 @@ Diagnose why a CI/pipeline run failed — distinct from a single failing test (s
 
 ## Phase 2 — Diagnose
 - Determine whether the failure is caused by the code change itself, a flaky/environmental issue (network, infra, transient service), a dependency/version problem, or a pipeline config issue — state which, with evidence from the log, not a guess.
-- If it looks environmental/flaky rather than code-caused, say so explicitly and hand off to flaky_test_triager_prompt instead of treating it as a code defect.
+- If it looks environmental/flaky rather than code-caused, say so explicitly and hand off to 11_flaky_test_triager_prompt instead of treating it as a code defect.
 - If multiple stages or jobs failed, determine whether they share one root cause or are independent failures — don't lump them into one story if they aren't related.
 
 ## Phase 3 — Output

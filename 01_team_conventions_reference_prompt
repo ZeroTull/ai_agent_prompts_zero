@@ -21,7 +21,7 @@ Produce a single structured reference document covering:
 3. PR/MR conventions: required sections, title format, checklist items, definition of done.
 4. Test case conventions: naming pattern, required fields, test type taxonomy.
 5. Bug ticket conventions: title format, required repro-step structure, severity taxonomy with concrete examples of what qualifies for each level.
-6. Data sensitivity & isolation policy: a concrete classification of what counts as sensitive in this environment (credentials/tokens/connection strings, PII, regulated/customer data, anything else the project restricts) — specific enough that the orchestrator's intake guard (see agent_orchestrator_prompt) can pattern-match on it, not just "don't include PII" but what PII looks like here (field names, formats, examples to catch). This is enforced at intake, before any agent sees a request, not only as output redaction — no agent in this system reads sensitive data, even if a human pastes it directly.
+6. Data sensitivity & isolation policy: a concrete classification of what counts as sensitive in this environment (credentials/tokens/connection strings, PII, regulated/customer data, anything else the project restricts) — specific enough that the orchestrator's intake guard (see 03_agent_orchestrator_prompt) can pattern-match on it, not just "don't include PII" but what PII looks like here (field names, formats, examples to catch). This is enforced at intake, before any agent sees a request, not only as output redaction — no agent in this system reads sensitive data, even if a human pastes it directly.
 7. Regulatory/compliance notes: anything every agent must respect regardless of task (e.g., "flag any change touching module X for compliance review").
 
 ## Phase 3 — Output

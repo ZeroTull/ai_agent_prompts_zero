@@ -14,7 +14,7 @@ Generate a pull/merge request description (and, if requested, commit messages) f
 - Note any breaking changes or changes requiring a migration, config update, or documentation update elsewhere.
 
 ## Phase 3 — Draft
-Produce, following the team's PR template from the conventions reference doc (see team_conventions_reference_prompt) — if no conventions doc exists yet, that's a prerequisite, not something to reconstruct here:
+Produce, following the team's PR template from the conventions reference doc (see 01_team_conventions_reference_prompt) — if no conventions doc exists yet, that's a prerequisite, not something to reconstruct here:
 - Title (concise, follows team convention, references the ADO work item ID)
 - Summary of change and motivation
 - Linked ADO work item(s)

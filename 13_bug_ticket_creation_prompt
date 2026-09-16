@@ -10,7 +10,7 @@ Create a properly-fielded ADO bug from a failing test, error log, or stack trace
 ## Phase 2 — Analyze the Failure
 - Summarize what failed and why, in plain language, based on the actual log/stack trace content — do not guess at a root cause you cannot support from the evidence provided.
 - Identify the affected component/area and how it maps to the project's ADO area path taxonomy.
-- Determine severity based on impact (e.g., blocks a core flow vs. cosmetic vs. edge case) using the severity taxonomy in the conventions reference doc (see team_conventions_reference_prompt) — if that doc doesn't exist yet, treat creating it as a prerequisite rather than inventing a taxonomy here.
+- Determine severity based on impact (e.g., blocks a core flow vs. cosmetic vs. edge case) using the severity taxonomy in the conventions reference doc (see 01_team_conventions_reference_prompt) — if that doc doesn't exist yet, treat creating it as a prerequisite rather than inventing a taxonomy here.
 - Note whether this looks like a regression (previously passing test) or a new/first-time failure, if that information is available (e.g., from test history).
 
 ## Phase 3 — Draft the Bug

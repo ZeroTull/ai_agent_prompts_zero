@@ -26,7 +26,7 @@ For each recurring pattern found, assess likely cause:
 - Insufficient context being passed to the agent (e.g., it isn't seeing related history it would need to get this right).
 
 ## Phase 4 — Cost & Model-Tier Drift Check
-Using the orchestrator's call log (see agent_orchestrator_prompt), check whether each agent is actually running on the model tier it was assigned in qa_agent_builder_prompt:
+Using the orchestrator's call log (see 03_agent_orchestrator_prompt), check whether each agent is actually running on the model tier it was assigned in 04_ecosystem_prompt:
 - Flag any agent whose actual calls are landing on a pricier tier than assigned, and how often.
 - Flag any agent whose call volume is unexpectedly high relative to its trigger (e.g., re-processing unchanged inputs instead of caching/skipping them).
 - This is a drift check, not a redesign — recommend a fix (reassert the tier, add caching, investigate the escalation trigger), don't silently change anything yourself.

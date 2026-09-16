@@ -7,7 +7,7 @@ Determine whether a test that failed intermittently is genuinely flaky (non-dete
 - Pull the test's own code/definition if accessible, to check for common flakiness sources (timing assumptions, shared state, unseeded randomness, network/external-service dependency, ordering dependency).
 
 ## Phase 2 — Triage
-- Classify: consistently failing (not actually flaky — route to bug_ticket_creation_prompt instead), genuinely intermittent with an identifiable likely cause, or intermittent with no identifiable cause from available evidence.
+- Classify: consistently failing (not actually flaky — route to 13_bug_ticket_creation_prompt instead), genuinely intermittent with an identifiable likely cause, or intermittent with no identifiable cause from available evidence.
 - If a likely cause is identifiable (e.g., missing wait/timeout, shared fixture, external call with no retry), state it with the specific evidence.
 - Note the test's failure rate and whether it currently blocks CI (hard-fails the pipeline) or is already non-blocking — that changes urgency.
 

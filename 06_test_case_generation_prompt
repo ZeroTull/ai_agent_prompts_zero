@@ -8,7 +8,7 @@ Generate test cases from ADO work items (user stories, requirements, acceptance 
 
 ## Phase 2 — Generate
 For each distinct testable condition in the acceptance criteria, produce a test case with:
-- Title (clear, specific, follows the naming convention in the conventions reference doc — see team_conventions_reference_prompt)
+- Title (clear, specific, follows the naming convention in the conventions reference doc — see 01_team_conventions_reference_prompt)
 - Preconditions
 - Steps (numbered, unambiguous, one action per step)
 - Expected result (specific and verifiable, not vague)
