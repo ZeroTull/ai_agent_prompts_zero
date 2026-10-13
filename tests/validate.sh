@@ -75,7 +75,7 @@ settings_problem="$(ruby -rjson -e '
   perms = data.is_a?(Hash) ? data["permissions"] : nil
   deny = perms.is_a?(Hash) && perms["deny"].is_a?(Array) ? perms["deny"] : []
   required = ["Read(**/.env)", "Read(**/.env.local)", "Read(**/.env.production)", "Read(**/.env.test)",
-              "Read(**/secrets/*.yaml)", "Read(**/secrets/*.json)", "Read(**/secrets/*.properties)",
+              "Read(**/secrets/**/*.yaml)", "Read(**/secrets/**/*.json)", "Read(**/secrets/**/*.properties)",
               "Read(~/.ssh/**)", "Read(~/.azure/**)", "Read(~/.config/gh/**)", "Read(**/*.pem)"]
   missing = required - deny
   puts "settings.example.json misses deny rules: #{missing.join(", ")}" unless missing.empty?

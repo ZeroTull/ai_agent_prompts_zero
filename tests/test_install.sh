@@ -20,7 +20,7 @@ run() {
 }
 
 # True if the last install output does not contain $1. Called through assert.
-# shellcheck disable=SC2329
+# shellcheck disable=SC2317,SC2329
 out_lacks() { ! grep -q -- "$1" <<<"$out"; }
 
 count_links() { find "$1" -type l | wc -l | tr -d ' '; }
@@ -55,14 +55,32 @@ assert "exits 0 with missing tools" test "$rc" = 0
 assert "reports missing azure-devops extension" grep -q "missing .*az azure-devops extension" <<<"$out"
 assert "does not run az" test ! -e "$TMP/az-called"
 assert "reports missing openpyxl" grep -q "missing .*openpyxl" <<<"$out"
-if ! PATH="/usr/bin:/bin" command -v claude >/dev/null 2>&1; then
+if PATH="/usr/bin:/bin" command -v claude >/dev/null 2>&1; then
+  echo "  skip  reports a missing tool (claude is installed in /usr/bin or /bin)"
+else
   assert "reports a missing tool with its purpose" grep -q "missing .*claude (Claude Code itself)" <<<"$out"
 fi
 mkdir "$TMP/azext/azure-devops"
+out="$(PATH="$stubs:/usr/bin:/bin" AZURE_EXTENSION_DIR="$TMP/azext" "$REPO/install.sh" 2>&1)"
+assert "empty extension folder counts as missing" grep -q "missing .*az azure-devops extension" <<<"$out"
+touch "$TMP/azext/azure-devops/setup.py"
 out="$(PATH="$stubs:/usr/bin:/bin" PY_EXIT=0 AZURE_EXTENSION_DIR="$TMP/azext" "$REPO/install.sh" 2>&1)"; rc=$?
 assert "exits 0 with all tools" test "$rc" = 0
 assert "no extension warning when installed" out_lacks "azure-devops extension"
 assert "no openpyxl warning when importable" out_lacks "openpyxl"
+
+echo "macOS python3 stub"
+# Simulate macOS where python3 resolves to the Command Line Tools stub.
+printf '#!/bin/sh\nexit 1\n' >"$stubs/xcode-none"
+printf '#!/bin/sh\nexit 0\n' >"$stubs/xcode-ok"
+chmod +x "$stubs/xcode-none" "$stubs/xcode-ok"
+out="$(PATH="$stubs:/usr/bin:/bin" QA_PY_STUB="$stubs/python3" QA_OS=Darwin QA_XCODE_SELECT="$stubs/xcode-none" "$REPO/install.sh" 2>&1)"; rc=$?
+assert "exits 0" test "$rc" = 0
+assert "reports the stub without running it" grep -q "only the macOS stub is installed" <<<"$out"
+assert "skips the openpyxl probe" out_lacks "openpyxl"
+out="$(PATH="$stubs:/usr/bin:/bin" QA_PY_STUB="$stubs/python3" QA_OS=Darwin QA_XCODE_SELECT="$stubs/xcode-ok" "$REPO/install.sh" 2>&1)"
+assert "with tools installed, checks openpyxl" grep -q "missing .*openpyxl" <<<"$out"
+assert "no stub message" out_lacks "macOS stub"
 
 echo "re-run is idempotent"
 run

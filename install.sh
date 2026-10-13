@@ -118,13 +118,16 @@ DEPS
   local py
   py="$(command -v python3 || true)"
   # On macOS without Command Line Tools, /usr/bin/python3 is a stub that opens an install dialog.
-  if [[ "$py" == /usr/bin/python3 && "$(uname -s)" == Darwin ]] && ! xcode-select -p >/dev/null 2>&1; then
+  # The QA_* variables exist so tests can simulate that machine.
+  if [[ "$py" == "${QA_PY_STUB:-/usr/bin/python3}" && "${QA_OS:-$(uname -s)}" == Darwin ]] &&
+    ! "${QA_XCODE_SELECT:-xcode-select}" -p >/dev/null 2>&1; then
     echo "  missing   python3 (only the macOS stub is installed: xcode-select --install or brew install python)"
   elif [[ -n "$py" ]] && ! "$py" -c "import openpyxl" >/dev/null 2>&1; then
     echo "  missing   openpyxl (Excel requirements in /test-developer: pip3 install --user openpyxl)"
   fi
   # Checks the extension folder instead of running az, which can be slow to start.
-  if command -v az >/dev/null 2>&1 && [[ ! -d "${AZURE_EXTENSION_DIR:-$HOME/.azure/cliextensions}/azure-devops" ]]; then
+  local azext="${AZURE_EXTENSION_DIR:-$HOME/.azure/cliextensions}/azure-devops"
+  if command -v az >/dev/null 2>&1 && [[ -z "$(ls -A "$azext" 2>/dev/null)" ]]; then
     echo "  missing   az azure-devops extension (az extension add --name azure-devops)"
   fi
 }
