@@ -66,11 +66,17 @@ done
 # Settings must parse, deny the core secret locations, and keep committed .env templates readable.
 settings_problem="$(ruby -rjson -e '
   begin
-    deny = JSON.parse(File.read(ARGV[0])).dig("permissions", "deny") || []
+    data = JSON.parse(File.read(ARGV[0]))
+  rescue Errno::ENOENT
+    puts "settings.example.json is missing"; exit
   rescue JSON::ParserError
     puts "settings.example.json is not valid JSON"; exit
   end
-  required = ["Read(**/.env)", "Read(**/.env.local)", "Read(**/.env.production)", "Read(~/.ssh/**)", "Read(~/.azure/**)", "Read(~/.config/gh/**)", "Read(**/*.pem)"]
+  perms = data.is_a?(Hash) ? data["permissions"] : nil
+  deny = perms.is_a?(Hash) && perms["deny"].is_a?(Array) ? perms["deny"] : []
+  required = ["Read(**/.env)", "Read(**/.env.local)", "Read(**/.env.production)", "Read(**/.env.test)",
+              "Read(**/secrets/*.yaml)", "Read(**/secrets/*.json)", "Read(**/secrets/*.properties)",
+              "Read(~/.ssh/**)", "Read(~/.azure/**)", "Read(~/.config/gh/**)", "Read(**/*.pem)"]
   missing = required - deny
   puts "settings.example.json misses deny rules: #{missing.join(", ")}" unless missing.empty?
   wild = deny.grep(/\ARead\((\*\*\/)?\.env\.\*\)\z/)

@@ -47,7 +47,7 @@ Useful searches: `grep -rn "Thread.sleep" src/test`, `grep -rln "@Ignore\|@Disab
 
 ```
 # Framework Health Report
-## Health Score            X/10, one line per category
+## Health Score            X/10, one line per category: stability, maintainability, quality, framework, performance, coverage strategy, CI gates
 ## Stability Issues
 ## Maintainability Issues
 ## Quality Issues

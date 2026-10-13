@@ -19,6 +19,10 @@ run() {
   rc=$?
 }
 
+# True if the last install output does not contain $1. Called through assert.
+# shellcheck disable=SC2329
+out_lacks() { ! grep -q -- "$1" <<<"$out"; }
+
 count_links() { find "$1" -type l | wc -l | tr -d ' '; }
 
 n_agents=$(find "$REPO/agents" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
@@ -36,9 +40,29 @@ assert "skill is readable through link" test -f "$CLAUDE_HOME/skills/$a_skill/SK
 
 echo "dependency check"
 assert "prints dependency check" grep -q "^Dependency check:" <<<"$out"
-assert "reports git as found" grep -q "found .*git" <<<"$out"
-out="$(PATH="/usr/bin:/bin" "$REPO/install.sh" 2>&1)"
-assert "reports a missing tool with its purpose" grep -q "missing .*claude (Claude Code itself)" <<<"$out"
+assert "reports git as found" grep -Eq "^  found +git$" <<<"$out"
+
+# Stub tools: az records any call, python3 fails or succeeds on demand.
+stubs="$TMP/stubs"
+mkdir -p "$stubs" "$TMP/azext"
+printf '#!/bin/sh\ntouch "%s/az-called"\n' "$TMP" >"$stubs/az"
+# PY_EXIT is expanded by the stub at run time.
+# shellcheck disable=SC2016
+printf '#!/bin/sh\nexit "${PY_EXIT:-1}"\n' >"$stubs/python3"
+chmod +x "$stubs/az" "$stubs/python3"
+out="$(PATH="$stubs:/usr/bin:/bin" AZURE_EXTENSION_DIR="$TMP/azext" "$REPO/install.sh" 2>&1)"; rc=$?
+assert "exits 0 with missing tools" test "$rc" = 0
+assert "reports missing azure-devops extension" grep -q "missing .*az azure-devops extension" <<<"$out"
+assert "does not run az" test ! -e "$TMP/az-called"
+assert "reports missing openpyxl" grep -q "missing .*openpyxl" <<<"$out"
+if ! PATH="/usr/bin:/bin" command -v claude >/dev/null 2>&1; then
+  assert "reports a missing tool with its purpose" grep -q "missing .*claude (Claude Code itself)" <<<"$out"
+fi
+mkdir "$TMP/azext/azure-devops"
+out="$(PATH="$stubs:/usr/bin:/bin" PY_EXIT=0 AZURE_EXTENSION_DIR="$TMP/azext" "$REPO/install.sh" 2>&1)"; rc=$?
+assert "exits 0 with all tools" test "$rc" = 0
+assert "no extension warning when installed" out_lacks "azure-devops extension"
+assert "no openpyxl warning when importable" out_lacks "openpyxl"
 
 echo "re-run is idempotent"
 run

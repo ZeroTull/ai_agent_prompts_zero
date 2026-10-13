@@ -52,7 +52,8 @@ Check, in the changed code:
 - **E. Testing:** missing tests for changed behavior, weak assertions, sleeps, order dependence, excessive retries, hardcoded/env-dependent data, missing negative and boundary tests. Test coverage is never optional:
   - New or changed behavior (feature, endpoint, bug fix) without a test is at least **HIGH**, and the recommendation cannot be better than "Request changes". Name the untested paths and the tests required.
   - A bug fix without a test that reproduces the bug is **HIGH**.
-  - Flag signs that tests were written after the code, to fit it: assertions that cannot fail, happy path only, test names that describe implementation steps instead of behavior, tests that mirror the code's internal structure.
+  - Put missing-test findings under "Needs confirmation" with the tests to add.
+  - Flag signs that tests were written after the code, to fit it (always LOW confidence - a diff cannot prove the order): assertions that cannot fail, happy path only, test names that describe implementation steps instead of behavior, tests that mirror the code's internal structure.
 - **F. Security:** hardcoded secrets (location and type only), unsafe logging, injection, missing authorization, unsafe deserialization, path handling, input validation.
 - **G. Concurrency:** shared mutable state, races, unsafe caching, non-atomic operations.
 
@@ -90,7 +91,7 @@ End the report with this section, copied as is, then the question:
 
 ```
 ## Apply Rules (for the main session)
-Apply only the findings the user selects, in the existing code style. No new dependencies, no test changes and no unrelated edits unless the user approved them. Then run only the impacted tests, once; on failure, stop and report. Post PR comments only if the user asks.
+Apply only the findings the user selects, in the existing code style. No new dependencies and no unrelated edits unless approved. Change existing tests only if approved; adding the tests named in approved findings is allowed. Then run only the impacted tests, once; on failure, stop and report. Post PR comments only if the user asks.
 ```
 
 **"Which findings should be implemented?"**

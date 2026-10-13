@@ -115,10 +115,16 @@ az|Azure DevOps work items, PRs and pipelines - or use the Azure DevOps MCP serv
 gh|GitHub PRs and Actions runs
 python3|Excel requirements in /test-developer
 DEPS
-  if command -v python3 >/dev/null 2>&1 && ! python3 -c "import openpyxl" >/dev/null 2>&1; then
+  local py
+  py="$(command -v python3 || true)"
+  # On macOS without Command Line Tools, /usr/bin/python3 is a stub that opens an install dialog.
+  if [[ "$py" == /usr/bin/python3 && "$(uname -s)" == Darwin ]] && ! xcode-select -p >/dev/null 2>&1; then
+    echo "  missing   python3 (only the macOS stub is installed: xcode-select --install or brew install python)"
+  elif [[ -n "$py" ]] && ! "$py" -c "import openpyxl" >/dev/null 2>&1; then
     echo "  missing   openpyxl (Excel requirements in /test-developer: pip3 install --user openpyxl)"
   fi
-  if command -v az >/dev/null 2>&1 && ! az extension show --name azure-devops >/dev/null 2>&1; then
+  # Checks the extension folder instead of running az, which can be slow to start.
+  if command -v az >/dev/null 2>&1 && [[ ! -d "${AZURE_EXTENSION_DIR:-$HOME/.azure/cliextensions}/azure-devops" ]]; then
     echo "  missing   az azure-devops extension (az extension add --name azure-devops)"
   fi
 }
