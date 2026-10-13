@@ -33,22 +33,25 @@ def read(path):
 
 
 # ── frontmatter ──────────────────────────────────────────────────────────────
-# A strict parser for the YAML subset that agent and skill frontmatter uses: top-level `key: value`
-# with plain, "double-quoted" or 'single-quoted' values, folded (>) and literal (|) block scalars,
-# and one level of nested `key: value` mappings. Anything else is rejected, so a file that passes
-# here also parses as YAML in Claude Code.
+# A strict parser for the YAML subset that agent and skill frontmatter uses:
+#   - top-level `key: value`, where value is plain, "double-quoted" or 'single-quoted', with an optional # comment
+#   - folded (>, >-, >+) and literal (|, |-, |+) block scalars
+#   - one level of nested `key: value` mappings, all at the same indent
+# Anything outside the subset is rejected with a message, never guessed, so a file that passes is unambiguous YAML.
 
 class YamlError(Exception):
     pass
 
 
 KEY = re.compile(r"^([A-Za-z0-9_-]+):(?: (.*))?$")
-RESERVED_START = tuple("[]{}&*!%@`|>,")
-
-
 DOUBLE = re.compile(r'"(?:[^"\\]|\\.)*"')
 SINGLE = re.compile(r"'(?:[^']|'')*'")
 TRAILER = re.compile(r"\s*(#.*)?")
+BLOCK = re.compile(r"([>|])([+-]?)(\s+#.*)?")
+
+
+def is_comment(line):
+    return line.strip().startswith("#")
 
 
 def scalar(raw, lineno):
@@ -56,7 +59,7 @@ def scalar(raw, lineno):
     if v.startswith(('"', "'")):
         m = (DOUBLE if v[0] == '"' else SINGLE).match(v)
         if not m:
-            raise YamlError(f"unterminated quoted string on line {lineno}")
+            raise YamlError(f"unterminated quoted string on line {lineno} (multi-line quoted values are not supported)")
         if not TRAILER.fullmatch(v[m.end():]):
             raise YamlError(f"unexpected text after quoted string on line {lineno}")
         if v[0] == "'":
@@ -64,13 +67,37 @@ def scalar(raw, lineno):
         try:
             return json.loads(m.group(0))
         except ValueError:
-            raise YamlError(f"bad double-quoted string on line {lineno}")
-    v = re.sub(r"\s+#.*$", "", v)
+            raise YamlError(f"unsupported escape in double-quoted string on line {lineno}")
+    v = re.sub(r"(?:^|\s)#.*$", "", v).strip()
+    if not v:
+        return None
+    if re.match(r"[-?:](\s|$)", v):
+        raise YamlError(f"sequence or mapping indicator on line {lineno}; quote the value")
     if ": " in v or v.endswith(":"):
         raise YamlError(f"mapping values are not allowed in this context on line {lineno}")
-    if v.startswith(RESERVED_START):
+    if v[0] in "&*!":
+        raise YamlError(f"anchors, aliases and tags are not supported (line {lineno})")
+    if v[0] in "[]{}%@`|>,":
         raise YamlError(f"plain value on line {lineno} starts with a reserved character; quote it")
     return v
+
+
+def nested_mapping(block, first_lineno):
+    content = [(n, b) for n, b in enumerate(block, start=first_lineno) if b.strip() and not is_comment(b)]
+    indent = len(content[0][1]) - len(content[0][1].lstrip(" "))
+    nested = {}
+    for n, b in content:
+        if len(b) - len(b.lstrip(" ")) != indent:
+            raise YamlError(f"nested line {n} is indented differently from line {content[0][0]}")
+        m = KEY.match(b[indent:])
+        if not m:
+            raise YamlError(f"unexpected nested line {n} (only `key: value` is supported)")
+        if m.group(1) in nested:
+            raise YamlError(f"duplicate key '{m.group(1)}' on line {n}")
+        if not (m.group(2) or "").strip() or is_comment(m.group(2)):
+            raise YamlError(f"more than one nesting level is not supported (line {n})")
+        nested[m.group(1)] = scalar(m.group(2), n)
+    return nested
 
 
 def parse_frontmatter(text):
@@ -80,7 +107,7 @@ def parse_frontmatter(text):
     data, i = {}, 0
     while i < len(lines):
         line, lineno = lines[i], i + 1
-        if not line.strip() or line.lstrip().startswith("#"):
+        if not line.strip() or is_comment(line):
             i += 1
             continue
         m = KEY.match(line)
@@ -96,24 +123,21 @@ def parse_frontmatter(text):
             i += 1
         while block and not block[-1].strip():
             block.pop()
-        if re.fullmatch(r"[>|][+-]?", value):
+        has_content = any(b.strip() and not is_comment(b) for b in block)
+        bm = BLOCK.fullmatch(value)
+        if re.match(r"[>|][+-]?\d", value):
+            raise YamlError(f"block indentation indicators are not supported (line {lineno})")
+        if bm:
             if not block:
                 raise YamlError(f"empty block scalar for '{key}' on line {lineno}")
-            body = [b.strip() for b in block]
-            data[key] = " ".join(b for b in body if b) if value[0] == ">" else "\n".join(body)
-        elif value == "":
-            nested = {}
-            for n, b in enumerate(block, start=lineno + 1):
-                if not b.strip():
-                    continue
-                nm = KEY.match(b.strip())
-                if not nm:
-                    raise YamlError(f"unexpected nested line {n}")
-                nested[nm.group(1)] = scalar(nm.group(2) or "", n)
-            data[key] = nested if nested else None
+            indent = min(len(b) - len(b.lstrip(" ")) for b in block if b.strip())
+            body = [b[indent:] for b in block]
+            data[key] = " ".join(b.strip() for b in body if b.strip()) if bm.group(1) == ">" else "\n".join(body)
+        elif not value or is_comment(value):
+            data[key] = nested_mapping(block, lineno + 1) if has_content else None
         else:
-            if block:
-                raise YamlError(f"unexpected indented line after '{key}' on line {lineno + 1}")
+            if has_content:
+                raise YamlError(f"multi-line values are not supported (line {lineno + 1}); use > or |")
             data[key] = scalar(value, lineno)
     return data
 
@@ -126,7 +150,14 @@ def check_frontmatter(file, expected):
         data = parse_frontmatter(m.group(1))
     except YamlError as e:
         return err(f"{rel(file)}: invalid YAML: {e}")
-    name, desc, model = (re.sub(r"\s+", " ", str(data.get(k) or "")) for k in ("name", "description", "model"))
+    values = {}
+    for k in ("name", "description", "model"):
+        v = data.get(k)
+        if v is not None and not isinstance(v, str):
+            err(f"{rel(file)}: '{k}' must be a plain string")
+            v = None
+        values[k] = re.sub(r"\s+", " ", v or "", flags=re.ASCII)
+    name, desc, model = values["name"], values["description"], values["model"]
     if name != expected:
         err(f"{rel(file)}: name '{name}' does not match '{expected}'")
     if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", name):
@@ -162,6 +193,8 @@ def tree_digest(directory):
         for n in names:
             path = os.path.join(root, n)
             if n == ".DS_Store" or n.endswith(".pyc") or "/__pycache__/" in path + "/":
+                continue
+            if not os.path.isfile(path):  # broken symlink
                 continue
             files.append(path)
     parts = []
@@ -236,13 +269,14 @@ for name in third_party:
         err(f"third-party.lock has no entry for {name} ({name}\t{actual})")
     elif lock[name] != actual:
         err(f"skills/{name} differs from third-party.lock - third-party skills must stay unchanged (now {actual})")
-for name in sorted(set(lock) - set(third_party)):
+for name in [n for n in lock if n not in third_party]:
     err(f"third-party.lock lists {name}, which is not a third-party entry")
 
 
 # Every entry on disk must be cataloged.
 def listdir(path):
-    return sorted(os.listdir(path)) if os.path.isdir(path) else []
+    """Visible entries only, like a shell glob."""
+    return sorted(n for n in os.listdir(path) if not n.startswith(".")) if os.path.isdir(path) else []
 
 
 entries = 0
