@@ -8,7 +8,7 @@ Every code change must follow these steps in order:
 2. **Commit & push** to the feature branch.
 3. **Open a PR/MR** (`glab mr create` or `gh pr create`).
 4. **Review loop — up to 20 cycles:**
-   - Run the code-reviewer agent on the diff.
+   - Run the code-reviewer agent on the diff, and tell it the cycle number ("cycle N of 20").
    - Post all findings as comments on the MR.
    - Fix every comment, push the fixes.
    - Re-run the code-reviewer agent.

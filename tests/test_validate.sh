@@ -94,7 +94,20 @@ expect_failure "settings not an object" "misses deny rules" \
 expect_failure ".env template wildcard" "denies .env templates" \
   "edit settings.example.json -e 's|\"Read(\\*\\*/.env.local)\"|\"Read(**/.env.*)\"|'"
 
+expect_failure "modified third-party skill" "skills/stop-slop differs from third-party.lock" \
+  "echo extra >> skills/stop-slop/SKILL.md"
+expect_failure "third-party skill without lock entry" "third-party.lock has no entry for stop-slop" \
+  "edit third-party.lock -e '/^stop-slop/d'"
+expect_failure "lock entry for a non-third-party skill" "third-party.lock lists bug-ticket" \
+  "printf 'bug-ticket\tabc\n' >> third-party.lock"
+
 echo "accepts"
+if LC_ALL=C LANG=C "$REPO/tests/validate.sh" "$REPO" >/dev/null 2>&1; then echo "  pass  C locale"; else echo "  FAIL  C locale"; fail=1; fi
+copy="$TMP/junk_files"
+copy_repo "$copy"
+touch "$copy/skills/stop-slop/.DS_Store"
+mkdir -p "$copy/skills/caveman-compress/scripts/__pycache__" && touch "$copy/skills/caveman-compress/scripts/__pycache__/x.pyc"
+if "$REPO/tests/validate.sh" "$copy" >/dev/null; then echo "  pass  ignores git-ignored junk in third-party skills"; else echo "  FAIL  git-ignored junk changes the hash"; fail=1; fi
 copy="$TMP/full_model_id"
 copy_repo "$copy"
 edit "$copy/agents/pr-reviewer.md" -e 's/^model: opus/model: claude-opus-5-5/'

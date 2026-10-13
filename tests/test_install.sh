@@ -30,6 +30,7 @@ n_agents=$(find "$REPO/agents" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
 n_skills=$(find "$REPO/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
 n_qa=$(awk -F'\t' 'NR > 1 && $3 == "qa"' "$REPO/catalog.tsv" | wc -l | tr -d ' ')
 qa_agent="$(awk -F'\t' 'NR > 1 && $3 == "qa" && $2 == "agent" { print $1; exit }' "$REPO/catalog.tsv").md"
+qa_agent2="$(awk -F'\t' 'NR > 1 && $3 == "qa" && $2 == "agent" { n++; if (n == 2) { print $1; exit } }' "$REPO/catalog.tsv").md"
 qa_skill="$(awk -F'\t' 'NR > 1 && $3 == "qa" && $2 == "skill" { print $1; exit }' "$REPO/catalog.tsv")"
 other_skill="$(awk -F'\t' 'NR > 1 && $3 != "qa" && $2 == "skill" { print $1; exit }' "$REPO/catalog.tsv")"
 
@@ -105,7 +106,7 @@ assert "reports backup" grep -q "backed up agents/$qa_agent" <<<"$out"
 assert "links the agent" test "$(readlink "$CLAUDE_HOME/agents/$qa_agent")" = "$REPO/agents/$qa_agent"
 bk="$(backup_dir)"
 assert "keeps the replaced file" test "$(cat "$bk/agents/$qa_agent")" = "mine"
-assert "keeps the replaced settings" grep -q autoMode "$bk/settings.json"
+assert "keeps the replaced settings byte for byte" test "$(cat "$bk/settings.json")" = '{"autoMode": {}}'
 assert "keeps a replaced foreign link" test "$(readlink "$bk/skills/$other_skill")" = /tmp/elsewhere
 assert "hints at settings.local.json" grep -q "settings.local.json" <<<"$out"
 
@@ -123,8 +124,13 @@ rm "$CLAUDE_HOME/skills/$qa_skill"
 ln -s "/old/place/skills/$qa_skill" "$CLAUDE_HOME/skills/$qa_skill"
 run --uninstall
 assert "exits 0" test "$rc" = 0
-assert "removes agent links" test ! -e "$CLAUDE_HOME/agents/$qa_agent"
-assert "removes top-level links" test ! -e "$CLAUDE_HOME/CLAUDE.md"
+assert "removes agent links without a backup" test ! -e "$CLAUDE_HOME/agents/$qa_agent2"
+assert "removes links without a backup" test ! -e "$CLAUDE_HOME/CLAUDE.md"
+assert "restores the backed-up settings.json" test "$(cat "$CLAUDE_HOME/settings.json")" = '{"autoMode": {}}'
+assert "restored settings.json is a regular file" test ! -L "$CLAUDE_HOME/settings.json"
+assert "restores the backed-up agent" test "$(cat "$CLAUDE_HOME/agents/$qa_agent")" = "mine"
+assert "restores a backed-up foreign link" test "$(readlink "$CLAUDE_HOME/skills/$other_skill")" = /tmp/elsewhere
+assert "reports the restore" grep -q "restored  settings.json" <<<"$out"
 assert "removes stale link with our name" test ! -L "$CLAUDE_HOME/skills/$qa_skill"
 assert "keeps foreign link" test -L "$CLAUDE_HOME/agents/other.md"
 assert "keeps Claude-managed folders" test -d "$CLAUDE_HOME/skills/synced"

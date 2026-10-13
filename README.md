@@ -19,7 +19,7 @@ git clone git@github.com:ZeroTull/claude-setup.git ~/projects/claude-setup
 - **Backups:** anything it replaces is moved to `~/.claude/backups/setup-<timestamp>/` first.
 - **Left alone:** items Claude Code manages itself, such as `skills/synced`.
 - **Moved clones:** if you move the clone, run it again from the new place; it repairs the links.
-- **Uninstall:** `./install.sh --uninstall` removes its links and keeps the backups.
+- **Uninstall:** `./install.sh --uninstall` removes its links and puts back the newest backup of each, so the machine returns to its state before the install.
 - **Missing tools:** at the end it lists missing tools (`jq`, `gh`, `glab`, `az`, `python3`/`openpyxl`) and what each is for.
 
 Restart Claude Code afterwards.
@@ -53,6 +53,7 @@ Then, in the work repo, start `claude` and run `/qa-conventions`.
 | `agents/`, `skills/`, `commands/` | See below |
 | `templates/` | `CLAUDE.md` for team repos and the shared safety rules (`safety.md`) |
 | `catalog.tsv` | Group and source of every agent, skill and command |
+| `third-party.lock` | Content hashes of the vendored third-party skills |
 
 ## QA agents and skills
 
@@ -125,7 +126,7 @@ Commit `.ai/context/` with the project.
 
 ## Third-party skills
 
-Vendored unchanged. The upstream source for each is in `catalog.tsv`.
+Vendored unchanged. The upstream source for each is in `catalog.tsv`, and `third-party.lock` pins their content by SHA-256, so the CI fails if one is edited by accident. To update one from upstream, replace its folder and put the new hash (printed by `tests/validate.sh`) into the lock file.
 
 | Skill | From |
 |---|---|
@@ -189,7 +190,7 @@ The agents never handle tokens. Authentication stays in tools that manage it the
 ## Development
 
 ```bash
-tests/validate.sh        # catalog, frontmatter (real YAML parse), safety block, docs, settings
+tests/validate.sh        # catalog, frontmatter (real YAML parse), safety block, third-party hashes, docs, settings
 tests/test_validate.sh   # validate.sh rejects broken inputs
 tests/test_install.sh    # installer behavior in a temp directory
 tests/test_config.sh     # settings.json, hook wrapper, status line

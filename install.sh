@@ -141,19 +141,34 @@ DEPS
   fi
 }
 
+# Prints the newest backup of <rel>, if any.
+latest_backup() {
+  local b found=""
+  for b in "$CLAUDE_HOME"/backups/setup-*/"$1"; do
+    if [[ -e "$b" || -L "$b" ]]; then found="$b"; fi
+  done
+  [[ -n "$found" ]] && echo "$found"
+}
+
+# Removes our links and puts back the newest backup of each, so the machine returns to its state before install.
 uninstall() {
-  local n=0 link target rel
+  local n=0 link target rel backup
   while IFS= read -r rel; do
     link="$CLAUDE_HOME/$rel"
     [[ -L "$link" ]] || continue
     target="$(readlink "$link")"
     if [[ "$target" == "$REPO/"* ]] || is_stale_link "$link"; then
       rm "$link"
-      echo "  removed   $rel"
       n=$((n + 1))
+      if backup="$(latest_backup "$rel")"; then
+        mv "$backup" "$link"
+        echo "  restored  $rel (from ${backup#"$CLAUDE_HOME"/})"
+      else
+        echo "  removed   $rel"
+      fi
     fi
   done < <(user_entries)
-  echo "Removed $n link(s). Backups from earlier installs stay in $CLAUDE_HOME/backups/."
+  echo "Removed $n link(s). Older backups stay in $CLAUDE_HOME/backups/."
 }
 
 case "${1:-}" in

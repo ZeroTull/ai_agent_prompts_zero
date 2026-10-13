@@ -7,7 +7,8 @@ set -uo pipefail
 
 REPO="$(cd "${1:-$(dirname "${BASH_SOURCE[0]}")/..}" && pwd)"
 
-exec ruby -ryaml -rjson - "$REPO" <<'RUBY'
+# -E UTF-8: read files as UTF-8 even under LANG=C (the entries contain non-ASCII characters).
+exec ruby -E UTF-8 -ryaml -rjson -rdigest - "$REPO" <<'RUBY'
 repo = ARGV[0]
 errors = []
 err = ->(msg) { errors << msg }
@@ -19,6 +20,25 @@ err.call("templates/safety.md missing or empty") if safety.empty?
 readme = read.call("#{repo}/README.md")
 template = read.call("#{repo}/templates/CLAUDE.md")
 listed = ->(name, text) { text.match?(/`\/?#{Regexp.escape(name)}`/) }
+
+# SHA-256 over every file in a skill folder (sorted relative paths and contents), skipping git-ignored junk.
+def tree_digest(dir)
+  files = Dir.glob("#{dir}/**/*", File::FNM_DOTMATCH).select { |f| File.file?(f) }
+  files = files.reject { |f| File.basename(f) == ".DS_Store" || f.include?("/__pycache__/") || f.end_with?(".pyc") }.sort
+  Digest::SHA256.hexdigest(files.map { |f| "#{f.delete_prefix("#{dir}/")}\0#{File.binread(f)}" }.join("\0"))
+end
+
+lock = {}
+lock_path = "#{repo}/third-party.lock"
+if File.exist?(lock_path)
+  File.read(lock_path).lines.map(&:chomp).reject { |l| l.empty? || l.start_with?("#") }.each do |l|
+    n, sha = l.split("\t")
+    lock[n] = sha
+  end
+else
+  err.call("third-party.lock missing")
+end
+third_party = []
 
 def entry_file(repo, name, kind)
   { "agent" => "#{repo}/agents/#{name}.md",
@@ -60,6 +80,7 @@ else
     err.call("#{row}: unknown group '#{group}'") unless %w[qa personal third-party].include?(group)
     if group == "third-party"
       err.call("#{row}: third-party entry needs a source URL") unless source.to_s.start_with?("https://")
+      third_party << name
     elsif source != "-"
       err.call("#{row}: source must be '-' for our own entries")
     end
@@ -76,6 +97,19 @@ else
     err.call("#{name} not listed in templates/CLAUDE.md") if group == "qa" && !listed.call(name, template)
   end
 end
+
+# Third-party skills are vendored unchanged: their content must match third-party.lock.
+third_party.each do |name|
+  dir = "#{repo}/skills/#{name}"
+  next unless File.directory?(dir)
+  actual = tree_digest(dir)
+  if lock[name].nil?
+    err.call("third-party.lock has no entry for #{name} (#{name}\t#{actual})")
+  elsif lock[name] != actual
+    err.call("skills/#{name} differs from third-party.lock - third-party skills must stay unchanged (now #{actual})")
+  end
+end
+(lock.keys - third_party).each { |name| err.call("third-party.lock lists #{name}, which is not a third-party entry") }
 
 # Every entry on disk must be cataloged.
 entries = 0
