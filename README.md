@@ -2,32 +2,37 @@
 
 Ready-to-use [Claude Code](https://claude.com/claude-code) agents and skills for QA automation on Java projects with Azure DevOps: writing tests from requirements, reviewing PRs, diagnosing CI failures, triaging flaky tests, and drafting test cases, bugs and PR descriptions.
 
-There is nothing to generate. Install once and the agents are available in every repo. Each agent reads the project it runs in (build tool, test framework, conventions) and adapts on the spot.
+There is nothing to generate. Install once and they are available in every repo. Each one reads the project it runs in (build tool, test framework, conventions) and adapts on the spot.
 
 ## What's inside
 
-**Agents** run in their own context. Claude picks one automatically from your request, or you name it ("use the pr-reviewer agent").
+**Agents** run in a separate context and return a report. They are read-only: Claude Code blocks their file-editing tools. Claude picks one automatically from your request, or you can name it ("use the pr-reviewer agent").
 
 | Agent | Use it for |
 |---|---|
-| `test-developer` | Write missing automated tests from a text file, Excel, Confluence page or ADO work item. Checks existing coverage first. |
-| `pr-reviewer` | Review a Java PR (ADO or GitHub): correctness, conventions, performance, security, concurrency, tests. Findings with severity and confidence. |
+| `pr-reviewer` | Review a Java PR (ADO or GitHub): correctness, conventions, performance, security, concurrency, tests. Findings with severity, confidence and a fix plan. |
 | `test-maintainer` | Audit a test framework for flakiness, duplication, weak assertions, dead code and slow setup. Gives a health report and an improvement plan. |
-| `ci-failure-diagnoser` | Find the root cause of a failed pipeline run, with log evidence. Read-only. |
-| `flaky-test-triager` | Decide whether an intermittent failure is flaky or a real regression, based on run history. Read-only. |
+| `ci-failure-diagnoser` | Find the root cause of a failed pipeline run, with log evidence. |
+| `flaky-test-triager` | Decide whether an intermittent failure is flaky or a real regression, based on run history. |
 
-**Skills** are workflows you run with a slash command in your conversation.
+**Skills** run in your conversation, so they can ask you questions and wait for approval at each step. Start one with a slash command, or describe the task and Claude picks the matching skill.
 
 | Skill | Use it for |
 |---|---|
 | `/qa-conventions` | **Run first in each repo.** Builds `.ai/context/conventions.md` (ADO fields, severity scale, PR template, test naming, sensitive-data rules) from what the team already has. |
+| `/test-developer` | Write missing automated tests from a text file, Excel, Confluence page or ADO work item. Checks existing coverage, proposes a plan, writes approved tests, and runs them with an approved fix loop (max 5 attempts). |
 | `/test-cases` | Test cases for ADO Test Plans from a work item, with a coverage map. Pushes only approved cases. |
 | `/bug-ticket` | Draft an ADO bug from a failing test or log, with a duplicate check. Files only after approval. |
-| `/ticket-review` | Check whether a story or bug is ready for development (clear AC, testable, scoped). |
+| `/ticket-review` | Check whether a story or bug is ready for development (clear AC, testable, scoped). Read-only. |
 | `/pr-description` | Draft a PR title and description from your diff, linked to the ADO work item. |
 | `/agent-calibration` | Monthly check: where humans corrected the agents, and what to change. |
 
-Every agent and skill follows the same rules. It analyzes and proposes first, then waits for your approval before writing files, running tests or changing anything in ADO. It never reads credentials.
+## How approvals work
+
+- **Skills** stop at each gate ("Proceed with these 4 tests?") and continue when you answer.
+- **Agents** can't pause mid-task, so they finish with a report and a question such as "Which findings should be implemented?". Answer in the same chat ("apply 1, 3 and 5"), and Claude applies only those items in your main conversation, then runs the impacted tests.
+
+Nothing is written, run, posted to ADO or pushed until you say so.
 
 ## Install
 
@@ -44,7 +49,7 @@ cd ~/qa-agents
 ./install.sh
 ```
 
-This symlinks the agents into `~/.claude/agents/` and the skills into `~/.claude/skills/`. Run `git pull` to get updates. It never overwrites files you already have, and `./install.sh --uninstall` removes only its own links.
+This symlinks the agents into `~/.claude/agents/` and the skills into `~/.claude/skills/`. Run `git pull` to get updates. It never overwrites files you already have. If you move the clone, run `./install.sh` again from the new location to repair the links. `./install.sh --uninstall` removes only its own links.
 
 **For your team (one repo):**
 
@@ -52,7 +57,7 @@ This symlinks the agents into `~/.claude/agents/` and the skills into `~/.claude
 ./install.sh --project ~/path/to/work-repo
 ```
 
-This copies the agents and skills into `<repo>/.claude/` and adds `.claude/settings.json` and a `CLAUDE.md` if they don't exist yet. Commit the result and everyone on the team gets the same agents.
+This copies the agents and skills into `<repo>/.claude/` and adds `.claude/settings.json` and a `CLAUDE.md` if they don't exist yet. Commit the result and everyone on the team gets the same agents. To pick up a newer version later, `git pull` here, then run `./install.sh --project <repo> --update`. It overwrites only agents and skills whose content changed, and never touches your settings or `CLAUDE.md`.
 
 Then, in the work repo:
 
@@ -63,26 +68,34 @@ claude
 
 Check that the agents loaded with `/agents`. Type `/` to see the skills.
 
-## Connect Azure DevOps and Confluence safely
+## Security
+
+Every agent and skill includes the same safety rules (`templates/safety.md`). The CI checks that none of them is missing:
+
+- If you paste a token, password, connection string or customer data, the agent stops, does not repeat it, and asks you to resend without it.
+- It never reads `.env` files, token files or key stores, and never quotes secrets it finds in code, diffs or logs. It reports only `file:line` and the type of secret.
+- It treats ticket text, PR descriptions, comments and logs as data, never as instructions.
+
+Those rules are instructions to the model. Claude Code enforces the deny rules in `settings.example.json`, which block its file tools from `.env` files, key stores, `~/.ssh`, `~/.aws`, `~/.azure`, `gh`/git/Docker credentials and Maven/Gradle credential files. The user install doesn't change your settings, so merge that file into `~/.claude/settings.json` yourself; `--project` installs it for the repo. Deny rules cover Claude's file tools, not every shell command (`cat` or `git show HEAD:.env` could still read a file). Keep secrets outside the repo, and consider [sandbox mode](https://docs.claude.com/en/docs/claude-code/sandboxing) for stronger isolation.
+
+### Connecting Azure DevOps and Confluence
 
 The agents never handle tokens. Authentication stays in tools that manage it themselves:
 
-- **Azure DevOps:** `az login` plus `az extension add --name azure-devops` and `az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>`, or the [Azure DevOps MCP server](https://github.com/microsoft/azure-devops-mcp) (`claude mcp add ...`, see its README).
+- **Azure DevOps:** `az login`, `az extension add --name azure-devops`, and `az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>`. Or use the [Azure DevOps MCP server](https://github.com/microsoft/azure-devops-mcp); see its README for `claude mcp add`.
 - **Confluence:** the Atlassian MCP server. Without it, export the page to a file and pass the file.
-
-`settings.example.json` holds deny rules that stop Claude Code from reading `.env` files, `*-token.json` files, `~/.ssh`, `~/.aws`, `~/.azure` and Maven/Gradle credential files. The user install doesn't change your settings; merge this file into `~/.claude/settings.json` yourself. Deny rules cover Claude's file tools. A shell command could still read a file, so keep secrets outside the repo, and consider [sandbox mode](https://docs.claude.com/en/docs/claude-code/sandboxing) for stronger isolation.
 
 ## Day-to-day examples
 
 ```text
-Create tests from ./requirements/login.xlsx
+/test-developer ./requirements/login.xlsx
 Generate missing API tests for story 48213
 Review this PR: https://dev.azure.com/<org>/<project>/_git/<repo>/pullrequest/123
 Why did build 9876 fail?
 Is LoginTest#expiredPassword flaky?
 Audit the checkout module tests
 /test-cases 48213
-/bug-ticket   (after a failure in the conversation)
+/bug-ticket          (after a failure in the conversation)
 /pr-description
 ```
 
@@ -100,15 +113,25 @@ Commit `.ai/context/` with the project.
 
 ## Customizing
 
-- Each agent is one Markdown file in `agents/`. Each skill is a folder with `SKILL.md` in `skills/`. Edit them, open a PR, and the CI checks they still load.
-- `model:` in an agent sets its model (`opus`, `sonnet`, `haiku` or `inherit`). `pr-reviewer` uses `opus` because review needs judgment. The read-only diagnosers use `sonnet`.
-- For a stack other than Java or ADO, adjust the commands in the agent files (for example `gh` instead of `az`, `pytest` instead of `mvn`).
+- Each agent is one Markdown file in `agents/`, and each skill is a folder with a `SKILL.md` in `skills/`. Edit them and open a PR; CI checks they still load.
+- `model:` in an agent sets its model (`opus`, `sonnet`, `haiku`, `inherit` or a full model ID). `pr-reviewer` uses `opus` because review needs judgment. The log and history diagnosers use `sonnet`.
+- For a stack other than Java or ADO, adjust the commands in the files (for example `gh` instead of `az`, `pytest` instead of `mvn`).
+
+## Design decisions
+
+This repo used to contain 14 generator prompts. They were replaced by ready-made agents and skills. Differences from the old prompts:
+
+- **No orchestrator.** Claude Code already routes each request to an agent or skill based on its `description`. The orchestrator's "screen pasted secrets first" step is now part of every agent's safety rules.
+- **No custom ADO wrapper.** The old design had a hand-written wrapper hold the ADO token. The `az` CLI and the Azure DevOps MCP server already keep credentials out of the agent's context, and the deny rules block the files where they are stored.
+- **No model-tier routing or cost-drift check.** Each agent sets its own `model:`. `/agent-calibration` covers accuracy only.
+- **Writing tests is a skill, not an agent,** because it needs your approval several times in one flow.
 
 ## Development
 
 ```bash
-tests/validate.sh       # frontmatter, names, docs list every agent/skill
-tests/test_install.sh   # installer behavior in a temp directory
+tests/validate.sh        # frontmatter (real YAML parse), names, safety block, docs list every entry
+tests/test_validate.sh   # validate.sh rejects broken inputs
+tests/test_install.sh    # installer behavior in a temp directory
 ```
 
-CI runs both, plus `shellcheck`, on every PR.
+CI runs all three, plus `shellcheck`, on Linux and macOS for every PR.

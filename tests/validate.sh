@@ -1,28 +1,48 @@
 #!/usr/bin/env bash
-# Checks that every agent and skill is loadable by Claude Code and listed in the docs.
+# Checks that every agent and skill is loadable by Claude Code, carries the safety rules, and is documented.
+# Usage: tests/validate.sh [repo-dir]   (defaults to this repo)
 set -uo pipefail
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO="$(cd "${1:-$(dirname "${BASH_SOURCE[0]}")/..}" && pwd)"
 fail=0
 err() { echo "FAIL: $*"; fail=1; }
 
-# Prints the value of a top-level frontmatter key, or nothing.
-fm() {
-  awk -v key="$2" '
-    NR == 1 { if ($0 != "---") exit; next }
-    $0 == "---" { exit }
-    index($0, key ": ") == 1 { print substr($0, length(key) + 3); exit }
-  ' "$1"
+# Parses YAML frontmatter with a real YAML parser and prints name, description and model separated by \x1f,
+# or exits non-zero with a reason.
+frontmatter() {
+  ruby -ryaml -e '
+    text = File.read(ARGV[0])
+    m = text.match(/\A---\n(.*?)\n---\n/m) or abort("missing frontmatter block")
+    begin
+      data = YAML.safe_load(m[1])
+    rescue Psych::Exception => e
+      abort("invalid YAML: #{e.message.lines.first.strip}")
+    end
+    abort("frontmatter is not a mapping") unless data.is_a?(Hash)
+    puts [data["name"], data["description"], data["model"]].map { |v| v.to_s.gsub(/\s+/, " ") }.join("\x1f")
+  ' "$1" 2>&1
+}
+
+SAFETY_FILE="$REPO/templates/safety.md"
+[[ -s "$SAFETY_FILE" ]] || err "templates/safety.md missing or empty"
+
+# True if file $1 contains the whole safety block verbatim.
+has_safety_block() {
+  ruby -e 'exit(File.read(ARGV[0]).include?(File.read(ARGV[1]).strip) ? 0 : 1)' "$1" "$SAFETY_FILE" 2>/dev/null
 }
 
 check_entry() {
-  local file="$1" expected="$2" name desc
-  [[ "$(head -n 1 "$file")" == "---" ]] || { err "$file: missing frontmatter"; return; }
-  name="$(fm "$file" name)"
-  desc="$(fm "$file" description)"
+  local file="$1" expected="$2" out name desc model
+  if ! out="$(frontmatter "$file")"; then
+    err "$file: $out"
+    return
+  fi
+  IFS=$'\x1f' read -r name desc model <<<"$out"
   [[ "$name" == "$expected" ]] || err "$file: name '$name' does not match '$expected'"
   [[ "$name" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || err "$file: name '$name' is not kebab-case"
   [[ ${#desc} -ge 40 ]] || err "$file: description missing or too short"
+  [[ -z "$model" || "$model" =~ ^(inherit|opus|sonnet|haiku|claude-[a-z0-9.-]+)$ ]] || err "$file: unknown model '$model'"
+  has_safety_block "$file" || err "$file: does not contain the block from templates/safety.md verbatim"
   grep -Eq "\`/?$expected\`" "$REPO/templates/CLAUDE.md" || err "$expected not listed in templates/CLAUDE.md"
   grep -Eq "\`/?$expected\`" "$REPO/README.md" || err "$expected not listed in README.md"
 }
@@ -35,8 +55,6 @@ skills=("$REPO"/skills/*/)
 
 for f in "${agents[@]}"; do
   check_entry "$f" "$(basename "$f" .md)"
-  model="$(fm "$f" model)"
-  [[ -z "$model" || "$model" =~ ^(inherit|opus|sonnet|haiku)$ ]] || err "$f: unknown model '$model'"
 done
 
 for d in "${skills[@]}"; do
@@ -45,7 +63,7 @@ for d in "${skills[@]}"; do
   check_entry "$d/SKILL.md" "$(basename "$d")"
 done
 
-python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$REPO/settings.example.json" \
+ruby -rjson -e 'JSON.parse(File.read(ARGV[0]))' "$REPO/settings.example.json" 2>/dev/null \
   || err "settings.example.json is not valid JSON"
 
 [[ $fail -eq 0 ]] && echo "validate: all checks passed (${#agents[@]} agents, ${#skills[@]} skills)"

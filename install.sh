@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Installs the QA agents and skills for Claude Code.
-#   ./install.sh                    symlink into ~/.claude (all your repos, updates with git pull)
-#   ./install.sh --project <path>   copy into <path>/.claude (commit it to share with the team)
-#   ./install.sh --uninstall        remove symlinks created by the user-level install
+#   ./install.sh                             symlink into ~/.claude (all your repos, updates with git pull)
+#   ./install.sh --project <path> [--update] copy into <path>/.claude; --update refreshes changed copies
+#   ./install.sh --uninstall                 remove symlinks created by the user-level install
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,46 +18,91 @@ usage() {
   exit "$code"
 }
 
-# Link (user mode) or copy (project mode) one agent file or skill directory.
-place() {
-  local mode="$1" src="$2" dest="$3"
+die() {
+  echo "error: $*" >&2
+  usage 1
+}
+
+# True for a broken link that points at <something>/agents/<name> or <something>/skills/<name>,
+# i.e. a link left behind by an earlier install from a repo that has since moved.
+is_stale_link() {
+  local dest="$1" target
+  [[ -L "$dest" && ! -e "$dest" ]] || return 1
+  target="$(readlink "$dest")"
+  [[ "$(basename "$target")" == "$(basename "$dest")" ]] || return 1
+  [[ "$(basename "$(dirname "$target")")" == "$(basename "$(dirname "$dest")")" ]]
+}
+
+link_one() {
+  local src="$1" dest="$2"
   if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
-    echo "  ok       $dest"
-    return
-  fi
-  if [[ -e "$dest" || -L "$dest" ]]; then
-    echo "  SKIP     $dest (already exists, not ours - remove it to install)"
-    return
-  fi
-  if [[ "$mode" == link ]]; then
+    echo "  ok        $dest"
+  elif is_stale_link "$dest"; then
+    rm "$dest"
     ln -s "$src" "$dest"
-    echo "  linked   $dest"
+    echo "  relinked  $dest (old target was missing)"
+  elif [[ -e "$dest" || -L "$dest" ]]; then
+    echo "  SKIP      $dest (exists and is not ours - remove it to install)"
   else
-    cp -R "$src" "$dest"
-    echo "  copied   $dest"
+    ln -s "$src" "$dest"
+    echo "  linked    $dest"
   fi
 }
 
-install_into() {
-  local mode="$1" target="$2"
+copy_one() {
+  local src="$1" dest="$2" update="$3"
+  if [[ -L "$dest" ]]; then
+    echo "  SKIP      $dest (is a symlink - remove it to install a copy)"
+  elif [[ ! -e "$dest" ]]; then
+    cp -R "$src" "$dest"
+    echo "  copied    $dest"
+  elif diff -rq "$src" "$dest" >/dev/null 2>&1; then
+    echo "  ok        $dest"
+  elif [[ "$update" == yes ]]; then
+    rm -rf "$dest"
+    cp -R "$src" "$dest"
+    echo "  updated   $dest"
+  else
+    echo "  DIFFERS   $dest (run with --update to overwrite with this version)"
+  fi
+}
+
+# Calls "$1" for every agent file and skill directory with (src, dest, extra args...).
+each_entry() {
+  local fn="$1" target="$2" src
+  shift 2
   mkdir -p "$target/agents" "$target/skills"
   echo "Agents -> $target/agents"
-  for f in "$REPO"/agents/*.md; do
-    place "$mode" "$f" "$target/agents/$(basename "$f")"
+  for src in "$REPO"/agents/*.md; do
+    "$fn" "$src" "$target/agents/$(basename "$src")" "$@"
   done
   echo "Skills -> $target/skills"
-  for d in "$REPO"/skills/*/; do
-    d="${d%/}"
-    place "$mode" "$d" "$target/skills/$(basename "$d")"
+  for src in "$REPO"/skills/*/; do
+    src="${src%/}"
+    "$fn" "$src" "$target/skills/$(basename "$src")" "$@"
   done
+}
+
+copy_if_absent() {
+  local src="$1" dest="$2" hint="$3"
+  if [[ -e "$dest" ]]; then
+    echo "  SKIP      $dest (exists - $hint)"
+  else
+    cp "$src" "$dest"
+    echo "  copied    $dest"
+  fi
 }
 
 uninstall() {
-  local n=0 link
+  local n=0 link target
   for link in "$CLAUDE_HOME"/agents/* "$CLAUDE_HOME"/skills/*; do
-    if [[ -L "$link" && "$(readlink "$link")" == "$REPO"/* ]]; then
+    [[ -L "$link" ]] || continue
+    target="$(readlink "$link")"
+    # A stale link counts as ours only if this repo ships an entry with the same name.
+    if [[ "$target" == "$REPO/"* ]] ||
+      { is_stale_link "$link" && [[ -e "$REPO/$(basename "$(dirname "$link")")/$(basename "$link")" ]]; }; then
       rm "$link"
-      echo "  removed  $link"
+      echo "  removed   $link"
       n=$((n + 1))
     fi
   done
@@ -66,30 +111,31 @@ uninstall() {
 
 case "${1:-}" in
   "")
-    install_into link "$CLAUDE_HOME"
+    install_target="$CLAUDE_HOME"
+    each_entry link_one "$install_target"
     echo
     echo "Next: merge settings.example.json into $CLAUDE_HOME/settings.json (deny rules for secrets)."
     ;;
   --project)
-    [[ -n "${2:-}" && -d "$2" ]] || { echo "error: --project needs an existing directory" >&2; usage 1; }
+    [[ -n "${2:-}" ]] || die "--project needs a directory"
+    [[ -d "$2" ]] || die "not a directory: $2"
+    update=no
+    if [[ $# -eq 3 && "$3" == --update ]]; then
+      update=yes
+    elif [[ $# -gt 2 ]]; then
+      die "unexpected arguments after --project $2"
+    fi
     project="$(cd "$2" && pwd)"
-    install_into copy "$project/.claude"
-    if [[ ! -e "$project/.claude/settings.json" ]]; then
-      cp "$REPO/settings.example.json" "$project/.claude/settings.json"
-      echo "  copied   $project/.claude/settings.json"
-    else
-      echo "  SKIP     $project/.claude/settings.json (exists - merge settings.example.json by hand)"
-    fi
-    if [[ ! -e "$project/CLAUDE.md" ]]; then
-      cp "$REPO/templates/CLAUDE.md" "$project/CLAUDE.md"
-      echo "  copied   $project/CLAUDE.md"
-    else
-      echo "  SKIP     $project/CLAUDE.md (exists - see templates/CLAUDE.md for the section to add)"
-    fi
+    each_entry copy_one "$project/.claude" "$update"
+    copy_if_absent "$REPO/settings.example.json" "$project/.claude/settings.json" "merge settings.example.json by hand"
+    copy_if_absent "$REPO/templates/CLAUDE.md" "$project/CLAUDE.md" "add the sections from templates/CLAUDE.md by hand"
     echo
     echo "Next: open Claude Code in $project and run /qa-conventions."
     ;;
-  --uninstall) uninstall ;;
+  --uninstall)
+    [[ $# -eq 1 ]] || die "--uninstall takes no arguments"
+    uninstall
+    ;;
   -h|--help) usage 0 ;;
-  *) echo "error: unknown option $1" >&2; usage 1 ;;
+  *) die "unknown option $1" ;;
 esac

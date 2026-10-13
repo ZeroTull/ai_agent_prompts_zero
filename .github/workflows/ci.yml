@@ -7,12 +7,21 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Install shellcheck (macOS)
+        if: runner.os == 'macOS'
+        run: brew install shellcheck
       - name: Shellcheck
         run: shellcheck install.sh tests/*.sh
       - name: Validate agents and skills
         run: tests/validate.sh
+      - name: Test validator
+        run: tests/test_validate.sh
       - name: Test installer
         run: tests/test_install.sh
