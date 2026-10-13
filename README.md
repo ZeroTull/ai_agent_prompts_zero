@@ -196,4 +196,9 @@ tests/test_install.sh    # installer behavior in a temp directory
 tests/test_config.sh     # settings.json, hook wrapper, status line
 ```
 
-The validator needs Ruby (preinstalled on macOS and GitHub runners) and files with LF line endings. CI runs all four scripts, plus `shellcheck`, on Linux and macOS for every PR.
+The validator needs only `python3` (standard library, 3.9 or newer) and files with LF line endings. Python has no built-in YAML parser, so frontmatter is checked by a strict parser for the subset these files use:
+- `key: value` lines (plain, `"double"` or `'single'` quoted, optionally followed by a `# comment`)
+- `>` and `|` blocks (with `-` or `+`)
+- one level of nested `key: value`
+
+It rejects everything outside that subset with a message instead of guessing: multi-line plain or quoted values, lists, anchors and tags, block indentation numbers, deeper nesting. Rewrite such a value as a `>` block or quote it. CI runs all four scripts, plus `shellcheck`, on Linux and macOS for every PR.
