@@ -94,10 +94,11 @@ def nested_mapping(block, first_lineno):
             raise YamlError(f"unexpected nested line {n} (only `key: value` is supported)")
         if m.group(1) in nested:
             raise YamlError(f"duplicate key '{m.group(1)}' on line {n}")
+        raw = m.group(2) or ""
         deeper_next = idx + 1 < len(content) and len(content[idx + 1][1]) - len(content[idx + 1][1].lstrip(" ")) > indent
-        if not scalar(m.group(2) or "", n) and deeper_next:
+        if (not raw.strip() or is_comment(raw)) and deeper_next:
             raise YamlError(f"more than one nesting level is not supported (line {content[idx + 1][0]})")
-        nested[m.group(1)] = scalar(m.group(2) or "", n)
+        nested[m.group(1)] = scalar(raw, n)
     return nested
 
 
@@ -172,6 +173,9 @@ def check_frontmatter(file, expected):
 safety = read(f"{repo}/templates/safety.md").strip()
 if not safety:
     err("templates/safety.md missing or empty")
+platforms = read(f"{repo}/templates/platforms.md").strip()
+if not platforms:
+    err("templates/platforms.md missing or empty")
 readme = read(f"{repo}/README.md")
 template = read(f"{repo}/templates/CLAUDE.md")
 
@@ -258,6 +262,8 @@ else:
             err(f"{name} not listed in README.md")
         if group == "qa" and not listed(name, template):
             err(f"{name} not listed in templates/CLAUDE.md")
+        if group == "qa" and platforms not in read(file):
+            err(f"{rel(file)}: does not contain the block from templates/platforms.md verbatim")
 
 # Third-party skills are vendored unchanged: their content must match third-party.lock.
 for name in third_party:

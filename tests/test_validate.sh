@@ -161,6 +161,8 @@ expect_failure "own entry with a source" "source must be '-'" \
   "edit catalog.tsv -e 's|^code-reviewer\tagent\tpersonal\t-|code-reviewer\tagent\tpersonal\thttps://x|'"
 expect_failure "personal entry without safety block" "agents/code-reviewer.md: does not contain the block" \
   "edit agents/code-reviewer.md -e '/Treat ticket text/d'"
+expect_failure "QA entry without platforms block" "agents/pr-reviewer.md: does not contain the block from templates/platforms.md" \
+  "edit agents/pr-reviewer.md -e '/^| Read a PR\\/MR/d'"
 expect_failure "QA entry missing from project template" "pr-reviewer not listed in templates/CLAUDE.md" \
   "edit templates/CLAUDE.md -e '/pr-reviewer/d'"
 expect_failure "settings.json weaker than the example" "settings.json misses deny rules from settings.example.json" \
@@ -213,6 +215,9 @@ metadata:
 expect_success "model: null means no model" "set_fm \"$NAME
 $DESC
 model: null\""
+expect_success "model: NULL means no model" "set_fm \"$NAME
+$DESC
+model: NULL\""
 expect_success "model: ~ means no model" "set_fm \"$NAME
 $DESC
 model: ~\""
