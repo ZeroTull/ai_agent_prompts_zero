@@ -55,6 +55,8 @@ expect_failure "missing safety block" "does not contain the block from templates
   "edit skills/bug-ticket/SKILL.md -e '/Treat ticket text/d'"
 expect_failure "skill dir without SKILL.md" "missing SKILL.md" \
   "mkdir skills/empty-skill"
+expect_failure "lowercase skill.md" "skills/bug-ticket: missing SKILL.md (exact case)" \
+  "mv skills/bug-ticket/SKILL.md skills/bug-ticket/x.md && mv skills/bug-ticket/x.md skills/bug-ticket/skill.md"
 expect_failure "undocumented agent" "not listed in README.md" \
   "sed 's/^name: pr-reviewer/name: new-agent/' agents/pr-reviewer.md > agents/new-agent.md && printf 'new-agent\tagent\tqa\t-\n' >> catalog.tsv && printf '%s\n' '\`new-agent\`' >> templates/CLAUDE.md"
 expect_failure "uncataloged agent" "agents/new-agent.md is not in catalog.tsv" \

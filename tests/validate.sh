@@ -86,7 +86,8 @@ end
 Dir.glob("#{repo}/skills/*/").sort.each do |d|
   entries += 1
   name = File.basename(d)
-  err.call("skills/#{name}: missing SKILL.md") unless File.file?("#{d}SKILL.md")
+  # Exact-case check: macOS finds skill.md as SKILL.md, Linux does not.
+  err.call("skills/#{name}: missing SKILL.md (exact case)") unless Dir.children(d).include?("SKILL.md")
   err.call("skills/#{name} is not in catalog.tsv") unless cataloged["skill:#{name}"]
 end
 Dir.glob("#{repo}/commands/*.md").sort.each do |f|
