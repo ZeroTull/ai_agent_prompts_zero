@@ -96,7 +96,7 @@ def nested_mapping(block, first_lineno):
             raise YamlError(f"duplicate key '{m.group(1)}' on line {n}")
         raw = m.group(2) or ""
         deeper_next = idx + 1 < len(content) and len(content[idx + 1][1]) - len(content[idx + 1][1].lstrip(" ")) > indent
-        if (not raw.strip() or is_comment(raw)) and deeper_next:
+        if deeper_next and (not raw.strip() or is_comment(raw)):
             raise YamlError(f"more than one nesting level is not supported (line {content[idx + 1][0]})")
         nested[m.group(1)] = scalar(raw, n)
     return nested
@@ -176,6 +176,30 @@ if not safety:
 platforms = read(f"{repo}/templates/platforms.md").strip()
 if not platforms:
     err("templates/platforms.md missing or empty")
+
+
+def check_platform_commands(text):
+    """The table's commands must run without prompts and keep untrusted text out of double quotes."""
+    rows = "\n".join(line for line in text.splitlines() if line.startswith("|"))
+    for c in re.findall(r"`([^`]+)`", rows):
+        if c.startswith("glab ci view"):
+            err(f"templates/platforms.md: '{c}' is interactive")
+        if re.match(r"jira issue (view|list)\b", c) and "--plain" not in c:
+            err(f"templates/platforms.md: '{c}' needs --plain (otherwise it opens a pager)")
+        if re.search(r"\bcreate\b", c):
+            if not re.search(r"(^| )(-t|-s|--title)( |$)", c):
+                err(f"templates/platforms.md: '{c}' needs a title flag (otherwise it prompts)")
+            if c.startswith("glab issue create") and " -y" not in c:
+                err(f"templates/platforms.md: '{c}' needs -y (otherwise it asks to confirm)")
+            if c.startswith("jira issue create") and "--no-input" not in c:
+                err(f"templates/platforms.md: '{c}' needs --no-input")
+        for m in re.finditer(r'"([^"]*)"', c):
+            if m.group(1) != "$(cat <file>)":
+                err(f"templates/platforms.md: '{c}' puts text in double quotes; use single quotes or a file")
+
+
+if platforms:
+    check_platform_commands(platforms)
 readme = read(f"{repo}/README.md")
 template = read(f"{repo}/templates/CLAUDE.md")
 
@@ -331,7 +355,8 @@ if example:
                 "Read(**/secrets/**/*.yaml)", "Read(**/secrets/**/*.yml)", "Read(**/secrets/**/*.json)",
                 "Read(**/secrets/**/*.properties)", "Read(**/secrets/**/*.env)", "Read(**/secrets/**/*.conf)",
                 "Read(**/secrets/**/*.txt)",
-                "Read(~/.ssh/**)", "Read(~/.azure/**)", "Read(~/.config/gh/**)", "Read(**/*.pem)"]
+                "Read(~/.ssh/**)", "Read(~/.azure/**)", "Read(~/.config/gh/**)", "Read(**/*.pem)",
+                "Bash(glab ci get *--with-variables*)"]
     missing = [r for r in required if r not in deny]
     if missing:
         err(f"settings.example.json misses deny rules: {', '.join(missing)}")

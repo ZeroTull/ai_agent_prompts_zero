@@ -105,6 +105,12 @@ $DESC
 metadata:
   a: one
       b: two\""
+expect_failure "null value followed by nested lines" "is indented differently" \
+  "set_fm \"$NAME
+$DESC
+metadata:
+  a: null
+    c: d\""
 expect_failure "two nesting levels" "more than one nesting level is not supported" \
   "set_fm \"$NAME
 $DESC
@@ -163,6 +169,20 @@ expect_failure "personal entry without safety block" "agents/code-reviewer.md: d
   "edit agents/code-reviewer.md -e '/Treat ticket text/d'"
 expect_failure "QA entry without platforms block" "agents/pr-reviewer.md: does not contain the block from templates/platforms.md" \
   "edit agents/pr-reviewer.md -e '/^| Read a PR\\/MR/d'"
+expect_failure "platforms.md missing" "templates/platforms.md missing or empty" \
+  "rm templates/platforms.md"
+expect_failure "interactive glab view in the table" "'glab ci view' is interactive" \
+  "edit templates/platforms.md -e 's/glab ci get -p N -d/glab ci view/'"
+expect_failure "jira view without --plain" "needs --plain" \
+  "edit templates/platforms.md -e 's/jira issue view KEY --plain/jira issue view KEY/'"
+expect_failure "create without a title" "needs a title flag" \
+  "edit templates/platforms.md -e \"s/gh issue create -t '<title>' -F <file> -l bug/gh issue create -l bug/\""
+expect_failure "glab create without -y" "needs -y" \
+  "edit templates/platforms.md -e 's/ -l bug -y\`/ -l bug\`/'"
+expect_failure "untrusted text in double quotes" "puts text in double quotes" \
+  "edit templates/platforms.md -e \"s/gh issue list --search '<text>'/gh issue list --search \\\"<text>\\\"/\""
+expect_failure "missing CI-variables deny rule" "misses deny rules: Bash(glab ci get *--with-variables*)" \
+  "edit settings.example.json -e 's/--with-variables/--other/'"
 expect_failure "QA entry missing from project template" "pr-reviewer not listed in templates/CLAUDE.md" \
   "edit templates/CLAUDE.md -e '/pr-reviewer/d'"
 expect_failure "settings.json weaker than the example" "settings.json misses deny rules from settings.example.json" \

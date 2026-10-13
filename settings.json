@@ -81,7 +81,8 @@
       "Read(**/secrets/**/*.env)",
       "Read(**/secrets/**/*.conf)",
       "Read(**/secrets/**/*.txt)",
-      "Bash(rm -rf *)"
+      "Bash(rm -rf *)",
+      "Bash(glab ci get *--with-variables*)"
     ]
   },
   "hooks": {

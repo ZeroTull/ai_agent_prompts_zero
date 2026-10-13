@@ -163,7 +163,7 @@ Deny rules cover Claude's file tools, not every shell command: `cat`, `git show 
 The agents never handle tokens. Authentication stays in tools that manage it themselves:
 
 - **Jira Cloud and Confluence** (`*.atlassian.net`): the official Atlassian Remote MCP server (see Atlassian's documentation for the current `claude mcp add` command). It signs you in through the browser.
-- **Jira Data Center / Server:** [jira-cli](https://github.com/ankitpokhrel/jira-cli) (`brew install jira-cli`, then `jira init` and choose `local` installation). It keeps its own login; the deny rules block its config folder.
+- **Jira Data Center / Server:** [jira-cli](https://github.com/ankitpokhrel/jira-cli) (`brew install jira-cli`, then run `jira init` once in your own terminal and choose the `local` installation type). It keeps its own login; the deny rules block its config folder.
 - **Zephyr Scale:** a Zephyr Scale MCP server if your team has one. Without it, `/test-cases` writes a CSV file you import in Zephyr Scale (Tests > Import), so no Zephyr API token is ever needed.
 - **GitLab:** `glab auth login` (for self-hosted GitLab: `glab auth login --hostname <host>`).
 - **Azure DevOps:** `az login`, `az extension add --name azure-devops` and `az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>`. Or use the [Azure DevOps MCP server](https://github.com/microsoft/azure-devops-mcp); see its README for `claude mcp add`.
