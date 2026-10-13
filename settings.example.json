@@ -15,7 +15,16 @@
       "Bash(gh pr view *)",
       "Bash(gh pr diff *)",
       "Bash(gh run view *)",
-      "Bash(gh run list *)"
+      "Bash(gh run list *)",
+      "Bash(glab mr view *)",
+      "Bash(glab mr diff *)",
+      "Bash(glab ci get *)",
+      "Bash(glab ci list *)",
+      "Bash(glab ci trace *)",
+      "Bash(glab issue view *)",
+      "Bash(glab issue list *)",
+      "Bash(jira issue view *)",
+      "Bash(jira issue list *)"
     ],
     "deny": [
       "Read(**/.env)",
@@ -54,13 +63,15 @@
       "Read(~/.config/gh/**)",
       "Read(~/.docker/config.json)",
       "Read(~/.config/glab-cli/**)",
+      "Read(~/.config/.jira/**)",
       "Read(~/.gnupg/**)",
       "Read(~/.ssh/**)",
       "Read(~/.aws/**)",
       "Read(~/.azure/**)",
       "Read(~/.m2/settings.xml)",
       "Read(~/.gradle/gradle.properties)",
-      "Bash(rm -rf *)"
+      "Bash(rm -rf *)",
+      "Bash(glab ci get *--with-variables*)"
     ]
   }
 }

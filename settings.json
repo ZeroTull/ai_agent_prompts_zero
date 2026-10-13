@@ -31,7 +31,11 @@
       "Bash(az pipelines runs show *)",
       "Bash(az pipelines runs list *)",
       "Bash(gh run view *)",
-      "Bash(gh run list *)"
+      "Bash(gh run list *)",
+      "Bash(glab issue view *)",
+      "Bash(glab issue list *)",
+      "Bash(jira issue view *)",
+      "Bash(jira issue list *)"
     ],
     "deny": [
       "Read(~/.ssh/**)",
@@ -57,6 +61,7 @@
       "Read(~/.git-credentials)",
       "Read(~/.config/gh/**)",
       "Read(~/.config/glab-cli/**)",
+      "Read(~/.config/.jira/**)",
       "Read(~/.docker/config.json)",
       "Read(~/.azure/**)",
       "Read(~/.m2/settings.xml)",
@@ -76,7 +81,8 @@
       "Read(**/secrets/**/*.env)",
       "Read(**/secrets/**/*.conf)",
       "Read(**/secrets/**/*.txt)",
-      "Bash(rm -rf *)"
+      "Bash(rm -rf *)",
+      "Bash(glab ci get *--with-variables*)"
     ]
   },
   "hooks": {

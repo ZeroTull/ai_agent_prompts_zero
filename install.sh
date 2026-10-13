@@ -141,6 +141,7 @@ jq|status line
 gh|GitHub PRs and Actions runs
 glab|GitLab MRs in the PR workflow
 az|Azure DevOps work items, PRs and pipelines - or use the Azure DevOps MCP server
+jira|Jira Data Center issues (jira-cli) - Jira Cloud uses the Atlassian MCP server instead
 python3|Excel requirements in /test-developer
 DEPS
   local py
