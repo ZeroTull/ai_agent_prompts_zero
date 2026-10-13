@@ -103,6 +103,21 @@ assert "exits 0" test "$rc" = 0
 assert "reports update" grep -q "updated .*agents/$an_agent" <<<"$out"
 assert "agent matches repo" cmp -s "$proj/.claude/agents/$an_agent" "$REPO/agents/$an_agent"
 assert "skill matches repo" diff -rq "$proj/.claude/skills/$a_skill" "$REPO/skills/$a_skill"
+assert "--update keeps settings.json" test "$(cat "$proj/.claude/settings.json")" = "custom"
+assert "--update keeps CLAUDE.md" test "$(cat "$proj/CLAUDE.md")" = "# existing"
+
+echo "project update replaces added files"
+echo "extra" >"$proj/.claude/skills/$a_skill/notes.md"
+run --project "$proj" --update
+assert "reports replacement" grep -q "updated .*skills/$a_skill (local edits and added files replaced)" <<<"$out"
+assert "added file removed" test ! -e "$proj/.claude/skills/$a_skill/notes.md"
+
+echo "project copy that is a symlink"
+rm -rf "$proj/.claude/skills/$a_skill"
+ln -s "$TMP" "$proj/.claude/skills/$a_skill"
+run --project "$proj" --update
+assert "skips symlinked entry" grep -q "SKIP .*skills/$a_skill (is a symlink" <<<"$out"
+assert "symlink untouched" test "$(readlink "$proj/.claude/skills/$a_skill")" = "$TMP"
 
 echo "arguments"
 run --help

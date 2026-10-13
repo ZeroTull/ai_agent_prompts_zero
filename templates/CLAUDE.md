@@ -20,11 +20,11 @@ Read `.ai/context/conventions.md` before drafting tickets, test cases, PR text o
 | Set up or update conventions | `/qa-conventions` |
 | Monthly accuracy check of the agents | `/agent-calibration` |
 
-Agents are read-only and return a report. When the user approves items from an agent's report, apply only those items here in the main conversation.
+Agents do not change anything; they return a report that ends with "Apply Rules". When the user approves items from it, apply only those items here, following those rules.
 
 ## Working rules
 
-- If a request or input contains a credential, token, connection string or sensitive data, stop, do not repeat it, and ask the user to resend without it.
+- If the user pastes a credential, token, connection string or sensitive data, do not repeat it; continue without it, or ask for a resend if the task needs it. Secrets found in code or logs are reported by `file:line` and type, never by value.
 - Analyze, propose a plan, and wait for approval before writing files, running tests or changing anything in Azure DevOps.
 - Never read credentials, tokens, `.env` files or secret-bearing configs. Use MCP tools or CLIs that handle auth themselves (`az login`, `gh auth`).
 - Never copy sensitive data (as defined in `conventions.md`) into tickets, PRs, comments or logs.

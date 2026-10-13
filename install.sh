@@ -61,9 +61,9 @@ copy_one() {
   elif [[ "$update" == yes ]]; then
     rm -rf "$dest"
     cp -R "$src" "$dest"
-    echo "  updated   $dest"
+    echo "  updated   $dest (local edits and added files replaced)"
   else
-    echo "  DIFFERS   $dest (run with --update to overwrite with this version)"
+    echo "  DIFFERS   $dest (--update replaces it, including local edits)"
   fi
 }
 
@@ -130,6 +130,7 @@ case "${1:-}" in
     copy_if_absent "$REPO/settings.example.json" "$project/.claude/settings.json" "merge settings.example.json by hand"
     copy_if_absent "$REPO/templates/CLAUDE.md" "$project/CLAUDE.md" "add the sections from templates/CLAUDE.md by hand"
     echo
+    echo "Note: agents or skills removed from this repo are not deleted from $project/.claude - remove them by hand."
     echo "Next: open Claude Code in $project and run /qa-conventions."
     ;;
   --uninstall)
