@@ -38,20 +38,20 @@ if "$REPO/tests/validate.sh" "$REPO" >/dev/null; then echo "  pass  repo is vali
 # Portable in-place edit (BSD and GNU sed differ on -i). Subshells in expect_failure inherit it.
 edit() { local f="$1"; shift; sed "$@" "$f" >"$f.tmp" && mv "$f.tmp" "$f"; }
 
-# Replaces the frontmatter of agents/pr-reviewer.md (relative to the current directory) with $1.
+# Replaces the frontmatter of agents/code-reviewer.md (relative to the current directory) with $1.
 # Called from eval'd mutations.
 # shellcheck disable=SC2317,SC2329
 set_fm() {
   python3 - "$1" <<'SETFM'
 import re, sys
-path = "agents/pr-reviewer.md"
+path = "agents/code-reviewer.md"
 body = re.sub(r"\A---\n.*?\n---\n", "", open(path, encoding="utf-8").read(), count=1, flags=re.S)
 open(path, "w", encoding="utf-8").write("---\n" + sys.argv[1] + "\n---\n" + body)
 SETFM
 }
 
 # Frontmatter lines shared by the parser cases below.
-NAME="name: pr-reviewer"
+NAME="name: code-reviewer"
 DESC="description: Reviews a Java pull request for correctness, conventions and tests."
 
 # Runs a mutation on a copy of the repo and expects validate.sh to pass.
@@ -71,22 +71,22 @@ expect_success() {
 
 echo "rejects"
 expect_failure "missing frontmatter" "missing frontmatter block" \
-  "tail -n +6 agents/pr-reviewer.md > x && mv x agents/pr-reviewer.md"
+  "tail -n +6 agents/code-reviewer.md > x && mv x agents/code-reviewer.md"
 expect_failure "colon in description" "invalid YAML" \
-  "edit agents/pr-reviewer.md -e '3s/^description: Reviews/description: Note: reviews/'"
+  "edit agents/code-reviewer.md -e '3s/^description: Meticulous/description: Note: meticulous/'"
 expect_failure "unterminated quote" "invalid YAML: unterminated quoted string" \
-  "edit agents/pr-reviewer.md -e 's/^color: purple/color: \"purple/'"
+  "edit agents/code-reviewer.md -e 's/^color: blue/color: \"purple/'"
 expect_failure "text after a quoted string" "invalid YAML: unexpected text after quoted string" \
-  "edit agents/pr-reviewer.md -e 's/^color: purple/color: \"purple\" dark/'"
+  "edit agents/code-reviewer.md -e 's/^color: blue/color: \"purple\" dark/'"
 expect_failure "tab in frontmatter" "invalid YAML: tabs are not allowed" \
-  "edit agents/pr-reviewer.md -e '4s/^model: opus/model:\topus/'"
+  "edit agents/code-reviewer.md -e '4s/^model: haiku/model:\thaiku/'"
 expect_failure "unquoted reserved character" "starts with a reserved character" \
-  "edit agents/pr-reviewer.md -e 's/^color: purple/color: @purple/'"
+  "edit agents/code-reviewer.md -e 's/^color: blue/color: @purple/'"
 expect_failure "stray indented line" "invalid YAML: multi-line values are not supported" \
-  "edit agents/pr-reviewer.md -e 's/^color: purple/color: purple\\
+  "edit agents/code-reviewer.md -e 's/^color: blue/color: blue\\
   extra/'"
 expect_failure "duplicate key" "invalid YAML: duplicate key 'color'" \
-  "edit agents/pr-reviewer.md -e 's/^color: purple/color: purple\\
+  "edit agents/code-reviewer.md -e 's/^color: blue/color: blue\\
 color: red/'"
 expect_failure "comment instead of a value" "description missing or too short" \
   "set_fm \"$NAME
@@ -139,24 +139,24 @@ expect_failure "block indentation indicator" "block indentation indicators are n
   "set_fm \"$NAME
 description: >2
   Reviews a Java pull request for correctness, conventions and tests.\""
-expect_failure "name mismatch" "does not match 'pr-reviewer'" \
-  "edit agents/pr-reviewer.md -e '2s/.*/name: reviewer/'"
+expect_failure "name mismatch" "does not match 'code-reviewer'" \
+  "edit agents/code-reviewer.md -e '2s/.*/name: reviewer/'"
 expect_failure "non-kebab name" "is not kebab-case" \
-  "mkdir skills/Bad_Name && sed '2s/.*/name: Bad_Name/' skills/bug-ticket/SKILL.md > skills/Bad_Name/SKILL.md && printf 'Bad_Name\tskill\tqa\t-\n' >> catalog.tsv"
+  "mkdir skills/Bad_Name && sed '2s/.*/name: Bad_Name/' skills/save-progress/SKILL.md > skills/Bad_Name/SKILL.md && printf 'Bad_Name\tskill\tpersonal\t-\n' >> catalog.tsv"
 expect_failure "unknown model" "unknown model 'gpt-5'" \
-  "edit agents/pr-reviewer.md -e 's/^model: opus/model: gpt-5/'"
+  "edit agents/code-reviewer.md -e 's/^model: haiku/model: gpt-5/'"
 expect_failure "short description" "description missing or too short" \
-  "edit skills/bug-ticket/SKILL.md -e '3s/.*/description: Bugs./'"
+  "edit skills/save-progress/SKILL.md -e '3s/.*/description: Bugs./'"
 expect_failure "missing safety block" "does not contain the block from templates/safety.md" \
-  "edit skills/bug-ticket/SKILL.md -e '/Treat ticket text/d'"
+  "edit skills/save-progress/SKILL.md -e '/Treat ticket text/d'"
 expect_failure "skill dir without SKILL.md" "missing SKILL.md" \
   "mkdir skills/empty-skill"
-expect_failure "lowercase skill.md" "skills/bug-ticket: missing SKILL.md (exact case)" \
-  "mv skills/bug-ticket/SKILL.md skills/bug-ticket/x.md && mv skills/bug-ticket/x.md skills/bug-ticket/skill.md"
+expect_failure "lowercase skill.md" "skills/save-progress: missing SKILL.md (exact case)" \
+  "mv skills/save-progress/SKILL.md skills/save-progress/x.md && mv skills/save-progress/x.md skills/save-progress/skill.md"
 expect_failure "undocumented agent" "not listed in README.md" \
-  "sed 's/^name: pr-reviewer/name: new-agent/' agents/pr-reviewer.md > agents/new-agent.md && printf 'new-agent\tagent\tqa\t-\n' >> catalog.tsv && printf '%s\n' '\`new-agent\`' >> templates/CLAUDE.md"
+  "sed 's/^name: code-reviewer/name: new-agent/' agents/code-reviewer.md > agents/new-agent.md && printf 'new-agent\tagent\tpersonal\t-\n' >> catalog.tsv && printf '%s\n' '\`new-agent\`' >> templates/CLAUDE.md"
 expect_failure "uncataloged agent" "agents/new-agent.md is not in catalog.tsv" \
-  "sed 's/^name: pr-reviewer/name: new-agent/' agents/pr-reviewer.md > agents/new-agent.md"
+  "sed 's/^name: code-reviewer/name: new-agent/' agents/code-reviewer.md > agents/new-agent.md"
 expect_failure "cataloged entry without a file" "agents/ghost.md does not exist" \
   "printf 'ghost\tagent\tpersonal\t-\n' >> catalog.tsv"
 expect_failure "unknown group" "unknown group 'misc'" \
@@ -167,65 +167,37 @@ expect_failure "own entry with a source" "source must be '-'" \
   "edit catalog.tsv -e 's|^code-reviewer\tagent\tpersonal\t-|code-reviewer\tagent\tpersonal\thttps://x|'"
 expect_failure "personal entry without safety block" "agents/code-reviewer.md: does not contain the block" \
   "edit agents/code-reviewer.md -e '/Treat ticket text/d'"
-expect_failure "QA entry without platforms block" "agents/pr-reviewer.md: does not contain the block from templates/platforms.md" \
-  "edit agents/pr-reviewer.md -e '/^| Read a PR\\/MR/d'"
-expect_failure "platforms.md missing" "templates/platforms.md missing or empty" \
-  "rm templates/platforms.md"
-expect_failure "interactive glab view in the table" "'glab ci view' is interactive" \
-  "edit templates/platforms.md -e 's/glab ci get -p N -d/glab ci view/'"
-expect_failure "jira view without --plain" "needs --plain" \
-  "edit templates/platforms.md -e 's/jira issue view KEY --plain/jira issue view KEY/'"
-expect_failure "create without a title" "needs a title flag" \
-  "edit templates/platforms.md -e \"s/gh issue create -t '<title>' -F <file> -l bug/gh issue create -l bug/\""
-expect_failure "glab create without -y" "needs -y" \
-  "edit templates/platforms.md -e 's/ -l bug -y\`/ -l bug\`/'"
-expect_failure "untrusted text in double quotes" "puts text in double quotes" \
-  "edit templates/platforms.md -e \"s/gh issue list --search '<text>'/gh issue list --search \\\"<text>\\\"/\""
-expect_failure "jira list without --plain" "needs --plain" \
-  "edit templates/platforms.md -e \"s/jira issue list -q '<JQL>' --plain/jira issue list -q '<JQL>'/\""
-expect_failure "jira create without --no-input" "needs --no-input" \
-  "edit templates/platforms.md -e 's/ --no-input\`/\`/'"
-expect_failure "az create without a title" "needs a title flag" \
-  "edit templates/platforms.md -e \"s/--type Bug --title '<title>' /--type Bug /\""
-expect_failure "glab create without a title" "needs a title flag" \
-  "edit templates/platforms.md -e \"s/glab issue create -t '<title>' /glab issue create /\""
-expect_failure "jira create without a summary" "needs a title flag" \
-  "edit templates/platforms.md -e \"s/-tBug -s '<summary>' /-tBug /\""
-expect_failure "double quotes in the jira search row" "puts text in double quotes" \
-  "edit templates/platforms.md -e \"s/jira issue list -q '<JQL>'/jira issue list -q \\\"<JQL>\\\"/\""
-expect_failure "double quotes in a create title" "puts text in double quotes" \
-  "edit templates/platforms.md -e \"s/glab issue create -t '<title>'/glab issue create -t \\\"<title>\\\"/\""
-expect_failure "missing CI-variables deny rule" "misses deny rules: Bash(glab ci get *--with-variables*)" \
-  "edit settings.example.json -e 's/--with-variables/--other/'"
-expect_failure "QA entry missing from project template" "pr-reviewer not listed in templates/CLAUDE.md" \
-  "edit templates/CLAUDE.md -e '/pr-reviewer/d'"
-expect_failure "settings.json weaker than the example" "settings.json misses deny rules from settings.example.json" \
-  "edit settings.json -e '/\"Read(~\\/.ssh\\/\\*\\*)\"/d'"
-expect_failure "settings.json with a machine path" "machine-specific /Users/ path" \
+expect_failure "QA entry in the dev repo" "unknown group 'qa'" \
+  "edit catalog.tsv -e 's/^code-reviewer\tagent\tpersonal/code-reviewer\tagent\tqa/'"
+expect_failure "settings.json with a /Users path" "settings.json contains a machine-specific path" \
   "edit settings.json -e 's|\"theme\"|\"x\": \"/Users/me\", \"theme\"|'"
-expect_failure "invalid settings JSON" "settings.example.json is not valid JSON" \
-  "echo '{' > settings.example.json"
+expect_failure "settings.json with a /home path" "settings.json contains a machine-specific path" \
+  "edit settings.json -e 's|\"theme\"|\"x\": \"/home/me\", \"theme\"|'"
+expect_failure "missing git diff --output rule" "misses deny rules: Bash(git diff *--output*)" \
+  "edit settings.json -e 's/git diff \\*--output/git diff *--other/'"
+expect_failure "invalid settings JSON" "settings.json is not valid JSON" \
+  "echo '{' > settings.json"
 expect_failure "missing core deny rule" "misses deny rules: Read(**/.env)" \
-  "edit settings.example.json -e '/\"Read(\\*\\*\\/.env)\"/d'"
+  "edit settings.json -e '/\"Read(\\*\\*\\/.env)\"/d'"
 expect_failure "missing secrets-folder rule" "misses deny rules: Read(**/secrets/**/*.yaml)" \
-  "edit settings.example.json -e '/secrets.*yaml/d'"
+  "edit settings.json -e '/secrets.*yaml/d'"
 expect_failure "missing secrets-folder txt rule" "misses deny rules: Read(**/secrets/**/*.txt)" \
-  "edit settings.example.json -e '/secrets.*txt/d'"
+  "edit settings.json -e '/secrets.*txt/d'"
 expect_failure "missing .env variant" "misses deny rules: Read(**/.env.test)" \
-  "edit settings.example.json -e '/\\.env\\.test)/d'"
-expect_failure "settings file missing" "settings.example.json is missing" \
-  "rm settings.example.json"
+  "edit settings.json -e '/\\.env\\.test)/d'"
+expect_failure "settings file missing" "settings.json is missing" \
+  "rm settings.json"
 expect_failure "settings not an object" "misses deny rules" \
-  "echo '[]' > settings.example.json"
+  "echo '[]' > settings.json"
 expect_failure ".env template wildcard" "denies .env templates" \
-  "edit settings.example.json -e 's|\"Read(\\*\\*/.env.local)\"|\"Read(**/.env.*)\"|'"
+  "edit settings.json -e 's|\"Read(\\*\\*/.env.local)\"|\"Read(**/.env.*)\"|'"
 
 expect_failure "modified third-party skill" "skills/stop-slop differs from third-party.lock" \
   "echo extra >> skills/stop-slop/SKILL.md"
 expect_failure "third-party skill without lock entry" "third-party.lock has no entry for stop-slop" \
   "edit third-party.lock -e '/^stop-slop/d'"
-expect_failure "lock entry for a non-third-party skill" "third-party.lock lists bug-ticket" \
-  "printf 'bug-ticket\tabc\n' >> third-party.lock"
+expect_failure "lock entry for a non-third-party skill" "third-party.lock lists save-progress" \
+  "printf 'save-progress\tabc\n' >> third-party.lock"
 
 echo "accepts"
 for indicator in ">" ">-" ">+" "|" "|-" "|+" "> # folded"; do
@@ -272,7 +244,7 @@ if PATH="$TMP/noruby:$PATH" "$REPO/tests/validate.sh" "$REPO" >/dev/null 2>&1; t
 copy="$TMP/yaml_shapes"
 copy_repo "$copy"
 # Folded block with a colon inside, single quotes, and a comment are all valid YAML.
-edit "$copy/agents/pr-reviewer.md" -e "s/^color: purple/color: 'purple' # theme/"
+edit "$copy/agents/code-reviewer.md" -e "s/^color: blue/color: 'purple' # theme/"
 if "$REPO/tests/validate.sh" "$copy" >/dev/null; then echo "  pass  quoted value with a comment"; else echo "  FAIL  quoted value with a comment"; fail=1; fi
 if LC_ALL=C LANG=C "$REPO/tests/validate.sh" "$REPO" >/dev/null 2>&1; then echo "  pass  C locale"; else echo "  FAIL  C locale"; fail=1; fi
 copy="$TMP/junk_files"
@@ -282,7 +254,7 @@ mkdir -p "$copy/skills/caveman-compress/scripts/__pycache__" && touch "$copy/ski
 if "$REPO/tests/validate.sh" "$copy" >/dev/null; then echo "  pass  ignores git-ignored junk in third-party skills"; else echo "  FAIL  git-ignored junk changes the hash"; fail=1; fi
 copy="$TMP/full_model_id"
 copy_repo "$copy"
-edit "$copy/agents/pr-reviewer.md" -e 's/^model: opus/model: claude-opus-5-5/'
+edit "$copy/agents/code-reviewer.md" -e 's/^model: haiku/model: claude-opus-5-5/'
 if "$REPO/tests/validate.sh" "$copy" >/dev/null; then echo "  pass  full model ID"; else echo "  FAIL  full model ID rejected"; fail=1; fi
 
 [[ $fail -eq 0 ]] && echo "test_validate: all passed"

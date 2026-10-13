@@ -16,6 +16,8 @@ import re
 import sys
 
 repo = sys.argv[1]
+# Catalog groups this repo may contain. QA entries belong in claude-qa-automation.
+ALLOWED_GROUPS = ("personal", "third-party")
 errors = []
 err = errors.append
 
@@ -173,35 +175,7 @@ def check_frontmatter(file, expected):
 safety = read(f"{repo}/templates/safety.md").strip()
 if not safety:
     err("templates/safety.md missing or empty")
-platforms = read(f"{repo}/templates/platforms.md").strip()
-if not platforms:
-    err("templates/platforms.md missing or empty")
-
-
-def check_platform_commands(text):
-    """The table's commands must run without prompts and keep untrusted text out of double quotes."""
-    rows = "\n".join(line for line in text.splitlines() if line.startswith("|"))
-    for c in re.findall(r"`([^`]+)`", rows):
-        if c.startswith("glab ci view"):
-            err(f"templates/platforms.md: '{c}' is interactive")
-        if re.match(r"jira issue (view|list)\b", c) and "--plain" not in c:
-            err(f"templates/platforms.md: '{c}' needs --plain (otherwise it opens a pager)")
-        if re.search(r"\bcreate\b", c):
-            if not re.search(r"(^| )(-t|-s|--title)( |$)", c):
-                err(f"templates/platforms.md: '{c}' needs a title flag (otherwise it prompts)")
-            if c.startswith("glab issue create") and " -y" not in c:
-                err(f"templates/platforms.md: '{c}' needs -y (otherwise it asks to confirm)")
-            if c.startswith("jira issue create") and "--no-input" not in c:
-                err(f"templates/platforms.md: '{c}' needs --no-input")
-        for m in re.finditer(r'"([^"]*)"', c):
-            if m.group(1) != "$(cat <file>)":
-                err(f"templates/platforms.md: '{c}' puts text in double quotes; use single quotes or a file")
-
-
-if platforms:
-    check_platform_commands(platforms)
 readme = read(f"{repo}/README.md")
-template = read(f"{repo}/templates/CLAUDE.md")
 
 
 def listed(name, text):
@@ -234,13 +208,12 @@ def tree_digest(directory):
 
 lock = {}
 lock_path = f"{repo}/third-party.lock"
-if os.path.exists(lock_path):
+has_lock = os.path.exists(lock_path)
+if has_lock:
     for line in read(lock_path).splitlines():
         if line and not line.startswith("#"):
             n, _, sha = line.partition("\t")
             lock[n] = sha
-else:
-    err("third-party.lock missing")
 
 # ── catalog ──────────────────────────────────────────────────────────────────
 cataloged, third_party = set(), []
@@ -262,7 +235,7 @@ else:
         if kind not in ("agent", "skill", "command"):
             err(f"{row}: unknown kind '{kind}'")
             continue
-        if group not in ("qa", "personal", "third-party"):
+        if group not in ALLOWED_GROUPS:
             err(f"{row}: unknown group '{group}'")
         if group == "third-party":
             if not source.startswith("https://"):
@@ -284,12 +257,10 @@ else:
             err(f"{rel(file)}: does not contain the block from templates/safety.md verbatim")
         if not listed(name, readme):
             err(f"{name} not listed in README.md")
-        if group == "qa" and not listed(name, template):
-            err(f"{name} not listed in templates/CLAUDE.md")
-        if group == "qa" and platforms not in read(file):
-            err(f"{rel(file)}: does not contain the block from templates/platforms.md verbatim")
 
 # Third-party skills are vendored unchanged: their content must match third-party.lock.
+if third_party and not has_lock:
+    err("third-party.lock missing")
 for name in third_party:
     directory = f"{repo}/skills/{name}"
     if not os.path.isdir(directory):
@@ -331,45 +302,37 @@ for f in listdir(f"{repo}/commands"):
 
 
 # ── settings ─────────────────────────────────────────────────────────────────
-# settings.example.json: core secret rules present, committed .env templates readable.
-# settings.json: valid, portable, and denies at least everything the example denies.
-def load_settings(path):
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        err(f"{os.path.basename(path)} is missing")
-        return None
-    except ValueError:
-        err(f"{os.path.basename(path)} is not valid JSON")
-        return None
-    perms = data.get("permissions") if isinstance(data, dict) else None
+# settings.json must parse, deny the core secret locations, keep committed .env templates readable,
+# and name no machine-specific paths (it is shared across machines).
+# Any "/Users/" or "/home/" substring counts, so a rule that legitimately needs one would have to use "~/".
+MACHINE_PATH = re.compile(r"/(Users|home)/")
+try:
+    with open(f"{repo}/settings.json", encoding="utf-8") as f:
+        settings = json.load(f)
+except FileNotFoundError:
+    err("settings.json is missing")
+    settings = None
+except ValueError:
+    err("settings.json is not valid JSON")
+    settings = None
+if settings is not None:
+    perms = settings.get("permissions") if isinstance(settings, dict) else None
     deny = perms.get("deny") if isinstance(perms, dict) else None
-    return data, deny if isinstance(deny, list) else []
-
-
-example = load_settings(f"{repo}/settings.example.json")
-if example:
-    deny = example[1]
+    deny = deny if isinstance(deny, list) else []
+    if MACHINE_PATH.search(json.dumps(settings)):
+        err("settings.json contains a machine-specific path (/Users/ or /home/)")
     required = ["Read(**/.env)", "Read(**/.env.local)", "Read(**/.env.production)", "Read(**/.env.test)",
                 "Read(**/secrets/**/*.yaml)", "Read(**/secrets/**/*.yml)", "Read(**/secrets/**/*.json)",
                 "Read(**/secrets/**/*.properties)", "Read(**/secrets/**/*.env)", "Read(**/secrets/**/*.conf)",
                 "Read(**/secrets/**/*.txt)",
                 "Read(~/.ssh/**)", "Read(~/.azure/**)", "Read(~/.config/gh/**)", "Read(**/*.pem)",
-                "Bash(glab ci get *--with-variables*)"]
+                "Bash(glab ci get *--with-variables*)", "Bash(git diff *--output*)"]
     missing = [r for r in required if r not in deny]
     if missing:
-        err(f"settings.example.json misses deny rules: {', '.join(missing)}")
+        err(f"settings.json misses deny rules: {', '.join(missing)}")
     wild = [r for r in deny if re.fullmatch(r"Read\((\*\*/)?\.env\.\*\)", r)]
     if wild:
-        err(f"settings.example.json denies .env templates via {', '.join(wild)}")
-    full = load_settings(f"{repo}/settings.json")
-    if full:
-        gap = [r for r in deny if r not in full[1]]
-        if gap:
-            err(f"settings.json misses deny rules from settings.example.json: {', '.join(gap)}")
-        if "/Users/" in json.dumps(full[0]):
-            err("settings.json contains a machine-specific /Users/ path")
+        err(f"settings.json denies .env templates via {', '.join(wild)}")
 
 for e in errors:
     print(f"FAIL: {e}")
