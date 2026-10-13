@@ -181,6 +181,20 @@ expect_failure "glab create without -y" "needs -y" \
   "edit templates/platforms.md -e 's/ -l bug -y\`/ -l bug\`/'"
 expect_failure "untrusted text in double quotes" "puts text in double quotes" \
   "edit templates/platforms.md -e \"s/gh issue list --search '<text>'/gh issue list --search \\\"<text>\\\"/\""
+expect_failure "jira list without --plain" "needs --plain" \
+  "edit templates/platforms.md -e \"s/jira issue list -q '<JQL>' --plain/jira issue list -q '<JQL>'/\""
+expect_failure "jira create without --no-input" "needs --no-input" \
+  "edit templates/platforms.md -e 's/ --no-input\`/\`/'"
+expect_failure "az create without a title" "needs a title flag" \
+  "edit templates/platforms.md -e \"s/--type Bug --title '<title>' /--type Bug /\""
+expect_failure "glab create without a title" "needs a title flag" \
+  "edit templates/platforms.md -e \"s/glab issue create -t '<title>' /glab issue create /\""
+expect_failure "jira create without a summary" "needs a title flag" \
+  "edit templates/platforms.md -e \"s/-tBug -s '<summary>' /-tBug /\""
+expect_failure "double quotes in the jira search row" "puts text in double quotes" \
+  "edit templates/platforms.md -e \"s/jira issue list -q '<JQL>'/jira issue list -q \\\"<JQL>\\\"/\""
+expect_failure "double quotes in a create title" "puts text in double quotes" \
+  "edit templates/platforms.md -e \"s/glab issue create -t '<title>'/glab issue create -t \\\"<title>\\\"/\""
 expect_failure "missing CI-variables deny rule" "misses deny rules: Bash(glab ci get *--with-variables*)" \
   "edit settings.example.json -e 's/--with-variables/--other/'"
 expect_failure "QA entry missing from project template" "pr-reviewer not listed in templates/CLAUDE.md" \

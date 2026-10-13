@@ -70,12 +70,12 @@ Then, in the work repo, start `claude` and run `/qa-conventions`.
 
 | Skill | Use it for |
 |---|---|
-| `/qa-conventions` | **Run first in each repo.** Builds `.ai/context/conventions.md` (tracker fields for Jira/ADO/GitLab, severity scale, PR template, test naming, sensitive-data rules) from what the team already has. |
-| `/test-developer` | Write missing automated tests from a text file, Excel, Confluence page, Jira issue or ADO/GitLab work item. Checks existing coverage, proposes a plan, writes approved tests, and runs them with an approved fix loop (max 5 attempts). |
+| `/qa-conventions` | **Run first in each repo.** Builds `.ai/context/conventions.md` (tracker fields for Jira/ADO/GitLab/GitHub, severity scale, PR template, test naming, sensitive-data rules) from what the team already has. |
+| `/test-developer` | Write missing automated tests from a text file, Excel, Confluence page, Jira issue or ADO/GitLab/GitHub work item. Checks existing coverage, proposes a plan, writes approved tests, and runs them with an approved fix loop (max 5 attempts). |
 | `/test-cases` | Test cases from a Jira issue or ADO work item, with a coverage map. Delivers only approved cases: to ADO Test Plans, to Zephyr Scale through an MCP server, or as a Zephyr Scale CSV file to import. |
 | `/bug-ticket` | Draft a bug in Jira, Azure DevOps, GitLab or GitHub from a failing test or log, with a duplicate check. Files only after approval. |
 | `/ticket-review` | Check whether a story or bug is ready for development (clear AC, testable, scoped). Read-only. |
-| `/pr-description` | Draft a PR title and description from your diff, linked to the Jira issue or ADO/GitLab work item. |
+| `/pr-description` | Draft a PR title and description from your diff, linked to the Jira issue or ADO/GitLab/GitHub work item. |
 | `/agent-calibration` | Monthly check: where humans corrected the agents, and what to change. |
 
 ### How approvals work

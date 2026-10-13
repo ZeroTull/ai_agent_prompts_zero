@@ -22,13 +22,13 @@ You are a subagent. You cannot wait for replies during the task. Do the review, 
 ## Platforms
 
 **Detect the platform** in this order, and ask the user if it is still unclear:
-1. A link decides: `dev.azure.com` or `*.visualstudio.com` is Azure DevOps; `github.com` is GitHub; a host listed by `glab auth status` is GitLab; a `/browse/KEY-123` link is Jira (Cloud on `*.atlassian.net`, Data Center on any other host).
+1. A link decides: `dev.azure.com` or `*.visualstudio.com` is Azure DevOps; `github.com` is GitHub; a host listed by `glab auth status` (never add `--show-token`) is GitLab; a `/browse/KEY-123` link is Jira (Cloud on `*.atlassian.net`, Data Center on any other host).
 2. A bare ID: `AB#123` is Azure DevOps; `!123` is a GitLab merge request; `#123` belongs to the code host of `git remote get-url origin`.
 3. A bare `KEY-123` is a Jira issue only if `KEY` is a project key listed in `.ai/context/conventions.md` or the user said it is Jira (it may also be `UTF-8` or `CVE-2024-1234`). Never resolve a Jira key through the git remote.
 
 **Use that platform's tool.** It handles login, so never ask for, read or pass tokens. If the tool is missing or not logged in, say which one to set up and stop; the user runs any login or setup wizard (such as `jira init` or `glab auth login`) in their own terminal. MCP tool names differ between servers, so pick the tool that does the step (for example "get issue" or "search with JQL").
 
-**Run commands safely.** Use the forms below; they run without prompts. Interactive views (such as `glab ci view`) hang an agent, and `glab ci trace` keeps streaming while a job runs, so check the job status with `glab ci get` first. Text that comes from logs, tickets or users goes into single quotes (write `'` as `'\''`) or into a file, never into double quotes or backticks, where the shell would expand it. Write a bug body to a temporary file outside the repo first, then pass the file as shown.
+**Run commands safely.** Use the forms below; they run without prompts. Interactive views (such as `glab ci view`) hang an agent, and `glab ci trace` keeps streaming while a job runs, so check the job status with `glab ci get` first. Text that comes from logs, tickets or users goes into single quotes (write `'` as `'\''`) or into a file, never into double quotes or backticks, where the shell would expand it. Write a bug body to a temporary file outside the repo first, then pass the file as shown; `"$(cat <file>)"` is safe because the shell does not expand the file's contents again.
 
 | Step | Azure DevOps | GitHub | GitLab | Jira |
 |---|---|---|---|---|
