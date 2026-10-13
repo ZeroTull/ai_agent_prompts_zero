@@ -69,7 +69,7 @@ def scalar(raw, lineno):
         except ValueError:
             raise YamlError(f"unsupported escape in double-quoted string on line {lineno}")
     v = re.sub(r"(?:^|\s)#.*$", "", v).strip()
-    if not v:
+    if v in ("", "~", "null", "Null", "NULL"):
         return None
     if re.match(r"[-?:](\s|$)", v):
         raise YamlError(f"sequence or mapping indicator on line {lineno}; quote the value")
@@ -86,7 +86,7 @@ def nested_mapping(block, first_lineno):
     content = [(n, b) for n, b in enumerate(block, start=first_lineno) if b.strip() and not is_comment(b)]
     indent = len(content[0][1]) - len(content[0][1].lstrip(" "))
     nested = {}
-    for n, b in content:
+    for idx, (n, b) in enumerate(content):
         if len(b) - len(b.lstrip(" ")) != indent:
             raise YamlError(f"nested line {n} is indented differently from line {content[0][0]}")
         m = KEY.match(b[indent:])
@@ -94,9 +94,10 @@ def nested_mapping(block, first_lineno):
             raise YamlError(f"unexpected nested line {n} (only `key: value` is supported)")
         if m.group(1) in nested:
             raise YamlError(f"duplicate key '{m.group(1)}' on line {n}")
-        if not (m.group(2) or "").strip() or is_comment(m.group(2)):
-            raise YamlError(f"more than one nesting level is not supported (line {n})")
-        nested[m.group(1)] = scalar(m.group(2), n)
+        deeper_next = idx + 1 < len(content) and len(content[idx + 1][1]) - len(content[idx + 1][1].lstrip(" ")) > indent
+        if not scalar(m.group(2) or "", n) and deeper_next:
+            raise YamlError(f"more than one nesting level is not supported (line {content[idx + 1][0]})")
+        nested[m.group(1)] = scalar(m.group(2) or "", n)
     return nested
 
 
@@ -154,8 +155,7 @@ def check_frontmatter(file, expected):
     for k in ("name", "description", "model"):
         v = data.get(k)
         if v is not None and not isinstance(v, str):
-            err(f"{rel(file)}: '{k}' must be a plain string")
-            v = None
+            return err(f"{rel(file)}: '{k}' must be a plain string")
         values[k] = re.sub(r"\s+", " ", v or "", flags=re.ASCII)
     name, desc, model = values["name"], values["description"], values["model"]
     if name != expected:

@@ -204,6 +204,18 @@ metadata:
   # who wrote it
   author: Someone (https://example.com)
   trigger: Reviewing a PR\""
+expect_success "empty nested value" "set_fm \"$NAME
+$DESC
+metadata:
+  a:
+  b: # nothing
+  c: two\""
+expect_success "model: null means no model" "set_fm \"$NAME
+$DESC
+model: null\""
+expect_success "model: ~ means no model" "set_fm \"$NAME
+$DESC
+model: ~\""
 expect_success "single-quote escape" "set_fm \"$NAME
 description: 'Reviews a Java pull request''s correctness, conventions and tests.'\""
 expect_success "double-quote escape" "set_fm '$NAME
