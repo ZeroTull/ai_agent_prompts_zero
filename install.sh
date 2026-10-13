@@ -85,8 +85,8 @@ link_one() {
   ln -s "$src" "$dest"
 }
 
-# Refuses to install into an agents or skills folder under <base> that is itself a link, because the entries
-# would land inside whatever that folder points to.
+# Refuses to install into an agents, skills, commands or hooks folder under <base> that is itself a link,
+# because the entries would land inside whatever that folder points to.
 check_target_dirs() {
   local base="$1" d
   for d in agents skills commands hooks; do
@@ -100,18 +100,26 @@ check_target_dirs() {
 
 # Backs up and removes broken links into this repo whose entry no longer exists here (for example an agent that
 # moved to another repo), so ~/.claude keeps no dead links after an upgrade.
-prune_removed() {
-  local link target rel
+# Prints broken links in ~/.claude/{agents,skills,commands,hooks} that point into this repo.
+dead_repo_links() {
+  local link
   for link in "$CLAUDE_HOME"/agents/* "$CLAUDE_HOME"/skills/* "$CLAUDE_HOME"/commands/* "$CLAUDE_HOME"/hooks/*; do
-    [[ -L "$link" && ! -e "$link" ]] || continue
-    target="$(readlink "$link")"
-    [[ "$target" == "$REPO/"* ]] || continue
+    if [[ -L "$link" && ! -e "$link" && "$(readlink "$link")" == "$REPO/"* ]]; then
+      echo "$link"
+    fi
+  done
+}
+
+prune_removed() {
+  local link rel
+  while IFS= read -r link; do
+    [[ -n "$link" ]] || continue
     rel="${link#"$CLAUDE_HOME"/}"
     init_backup_dir
     mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
     mv "$link" "$BACKUP_DIR/$rel"
     echo "  removed   $rel (no longer in this repo; link backed up)"
-  done
+  done < <(dead_repo_links)
 }
 
 # Prints every path the user install links, relative to the repo.
@@ -173,13 +181,12 @@ uninstall() {
       fi
     fi
   done < <(user_entries)
-  for link in "$CLAUDE_HOME"/agents/* "$CLAUDE_HOME"/skills/* "$CLAUDE_HOME"/commands/* "$CLAUDE_HOME"/hooks/*; do
-    if [[ -L "$link" && ! -e "$link" && "$(readlink "$link")" == "$REPO/"* ]]; then
-      rm "$link"
-      echo "  removed   ${link#"$CLAUDE_HOME"/} (pointed to an entry no longer in this repo)"
-      n=$((n + 1))
-    fi
-  done
+  while IFS= read -r link; do
+    [[ -n "$link" ]] || continue
+    rm "$link"
+    echo "  removed   ${link#"$CLAUDE_HOME"/} (pointed to an entry no longer in this repo)"
+    n=$((n + 1))
+  done < <(dead_repo_links)
   echo "Removed $n link(s). Older backups stay in $CLAUDE_HOME/backups/."
 }
 

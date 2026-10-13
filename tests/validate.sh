@@ -304,6 +304,7 @@ for f in listdir(f"{repo}/commands"):
 # ── settings ─────────────────────────────────────────────────────────────────
 # settings.json must parse, deny the core secret locations, keep committed .env templates readable,
 # and name no machine-specific paths (it is shared across machines).
+# Any "/Users/" or "/home/" substring counts, so a rule that legitimately needs one would have to use "~/".
 MACHINE_PATH = re.compile(r"/(Users|home)/")
 try:
     with open(f"{repo}/settings.json", encoding="utf-8") as f:
