@@ -63,8 +63,20 @@ for d in "${skills[@]}"; do
   check_entry "$d/SKILL.md" "$(basename "$d")"
 done
 
-ruby -rjson -e 'JSON.parse(File.read(ARGV[0]))' "$REPO/settings.example.json" 2>/dev/null \
-  || err "settings.example.json is not valid JSON"
+# Settings must parse, deny the core secret locations, and keep committed .env templates readable.
+settings_problem="$(ruby -rjson -e '
+  begin
+    deny = JSON.parse(File.read(ARGV[0])).dig("permissions", "deny") || []
+  rescue JSON::ParserError
+    puts "settings.example.json is not valid JSON"; exit
+  end
+  required = ["Read(**/.env)", "Read(**/.env.local)", "Read(**/.env.production)", "Read(~/.ssh/**)", "Read(~/.azure/**)", "Read(~/.config/gh/**)", "Read(**/*.pem)"]
+  missing = required - deny
+  puts "settings.example.json misses deny rules: #{missing.join(", ")}" unless missing.empty?
+  wild = deny.grep(/\ARead\((\*\*\/)?\.env\.\*\)\z/)
+  puts "settings.example.json denies .env templates via #{wild.join(", ")}" unless wild.empty?
+' "$REPO/settings.example.json" 2>&1)"
+[[ -z "$settings_problem" ]] || err "$settings_problem"
 
 [[ $fail -eq 0 ]] && echo "validate: all checks passed (${#agents[@]} agents, ${#skills[@]} skills)"
 exit $fail

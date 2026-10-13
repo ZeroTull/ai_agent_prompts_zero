@@ -54,6 +54,10 @@ expect_failure "undocumented agent" "not listed in README.md" \
   "sed 's/^name: pr-reviewer/name: new-agent/' agents/pr-reviewer.md > agents/new-agent.md && printf '%s\n' '\`new-agent\`' >> templates/CLAUDE.md"
 expect_failure "invalid settings JSON" "settings.example.json is not valid JSON" \
   "echo '{' > settings.example.json"
+expect_failure "missing core deny rule" "misses deny rules: Read(**/.env)" \
+  "edit settings.example.json -e '/\"Read(\\*\\*\\/.env)\"/d'"
+expect_failure ".env template wildcard" "denies .env templates" \
+  "edit settings.example.json -e 's|\"Read(\\*\\*/.env.local)\"|\"Read(**/.env.*)\"|'"
 
 echo "accepts"
 copy="$TMP/full_model_id"

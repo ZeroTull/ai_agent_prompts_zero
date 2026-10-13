@@ -34,6 +34,12 @@ assert "links every skill" test "$(count_links "$CLAUDE_HOME/skills")" = "$n_ski
 assert "agent link resolves to repo file" test "$(readlink "$CLAUDE_HOME/agents/$an_agent")" = "$REPO/agents/$an_agent"
 assert "skill is readable through link" test -f "$CLAUDE_HOME/skills/$a_skill/SKILL.md"
 
+echo "dependency check"
+assert "prints dependency check" grep -q "^Dependency check:" <<<"$out"
+assert "reports git as found" grep -q "found .*git" <<<"$out"
+out="$(PATH="/usr/bin:/bin" "$REPO/install.sh" 2>&1)"
+assert "reports a missing tool with its purpose" grep -q "missing .*claude (Claude Code itself)" <<<"$out"
+
 echo "re-run is idempotent"
 run
 assert "exits 0" test "$rc" = 0
