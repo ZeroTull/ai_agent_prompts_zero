@@ -2,7 +2,7 @@
 
 My personal [Claude Code](https://claude.com/claude-code) setup for development: global rules, settings, status line, hooks, and the agents and skills I use to build software (currently a website).
 
-The QA test-automation agents live in a separate, self-contained repo: [claude-qa-automation](https://github.com/ZeroTull/claude-qa-automation). The two install side by side without conflict: this repo owns `~/.claude/CLAUDE.md` and `settings.json`, and the QA repo only adds its agents and skills.
+All QA test-automation agents and skills, including the test-strategy agent `senior-automation-qa-engineer`, live in a separate, self-contained repo: [claude-qa-automation](https://github.com/ZeroTull/claude-qa-automation). The two install side by side without conflict: this repo owns `~/.claude/CLAUDE.md` and `settings.json`, and the QA repo only adds its agents and skills.
 
 ## Install
 
@@ -43,7 +43,6 @@ Restart Claude Code afterwards.
 | `code-reviewer` | The reviewer in the `CLAUDE.md` PR loop. Structured blockers / high / medium report with TDD enforcement. Returns the report; the main session posts it on the PR/MR. |
 | `backend-architect` | API design, databases, scalable server-side architecture. |
 | `frontend-developer` | UI components, React/Next.js, client-side logic. |
-| `senior-automation-qa-engineer` | Test strategy and framework design. Day-to-day QA work is in claude-qa-automation. |
 | `/backend-architect-audit` | Deep backend audit through the `backend-architect` agent, with a phased plan. |
 | `/backend-review` | Backend structure review with a prioritized improvement plan. |
 | `/save-progress` | Save work in progress on one branch and resume it on another. |
