@@ -89,12 +89,28 @@ link_one() {
 # would land inside whatever that folder points to.
 check_target_dirs() {
   local base="$1" d
-  for d in agents skills; do
+  for d in agents skills commands hooks; do
     if [[ -L "$base/$d" ]]; then
       echo "error: $base/$d is a link to $(readlink "$base/$d"); installing would write into it." >&2
       echo "       Replace it with a real folder first." >&2
       exit 1
     fi
+  done
+}
+
+# Backs up and removes broken links into this repo whose entry no longer exists here (for example an agent that
+# moved to another repo), so ~/.claude keeps no dead links after an upgrade.
+prune_removed() {
+  local link target rel
+  for link in "$CLAUDE_HOME"/agents/* "$CLAUDE_HOME"/skills/* "$CLAUDE_HOME"/commands/* "$CLAUDE_HOME"/hooks/*; do
+    [[ -L "$link" && ! -e "$link" ]] || continue
+    target="$(readlink "$link")"
+    [[ "$target" == "$REPO/"* ]] || continue
+    rel="${link#"$CLAUDE_HOME"/}"
+    init_backup_dir
+    mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+    mv "$link" "$BACKUP_DIR/$rel"
+    echo "  removed   $rel (no longer in this repo; link backed up)"
   done
 }
 
@@ -157,6 +173,13 @@ uninstall() {
       fi
     fi
   done < <(user_entries)
+  for link in "$CLAUDE_HOME"/agents/* "$CLAUDE_HOME"/skills/* "$CLAUDE_HOME"/commands/* "$CLAUDE_HOME"/hooks/*; do
+    if [[ -L "$link" && ! -e "$link" && "$(readlink "$link")" == "$REPO/"* ]]; then
+      rm "$link"
+      echo "  removed   ${link#"$CLAUDE_HOME"/} (pointed to an entry no longer in this repo)"
+      n=$((n + 1))
+    fi
+  done
   echo "Removed $n link(s). Older backups stay in $CLAUDE_HOME/backups/."
 }
 
@@ -168,6 +191,7 @@ case "${1:-}" in
     while IFS= read -r rel; do
       link_one "$rel"
     done < <(user_entries)
+    prune_removed
     if [[ -n "$BACKUP_DIR" ]]; then
       echo
       echo "Replaced files were moved to $BACKUP_DIR."

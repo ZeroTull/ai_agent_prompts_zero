@@ -21,6 +21,7 @@ assert "uses the status line script" jq -e '.statusLine.command | contains("stat
 assert "every hook command points at the wrapper" \
   jq -e '[.hooks[][].hooks[].command] | all(. == "bash \"$HOME/.claude/hooks/tmux-claude.sh\"")' "$REPO/settings.json"
 # Auto mode reads autoMode only from ~/.claude/settings.json, so it lives here, without machine-specific paths.
+assert "denies git diff --output" jq -e '.permissions.deny | index("Bash(git diff *--output*)")' "$REPO/settings.json"
 assert "has an autoMode environment" jq -e '.autoMode.environment | length > 0' "$REPO/settings.json"
 assert "autoMode names no machine paths" jq -e '[.autoMode.environment[] | select(test("/Users/|/home/"))] | length == 0' "$REPO/settings.json"
 

@@ -169,8 +169,12 @@ expect_failure "personal entry without safety block" "agents/code-reviewer.md: d
   "edit agents/code-reviewer.md -e '/Treat ticket text/d'"
 expect_failure "QA entry in the dev repo" "unknown group 'qa'" \
   "edit catalog.tsv -e 's/^code-reviewer\tagent\tpersonal/code-reviewer\tagent\tqa/'"
-expect_failure "settings.json with a machine path" "machine-specific /Users/ path" \
+expect_failure "settings.json with a /Users path" "settings.json contains a machine-specific path" \
   "edit settings.json -e 's|\"theme\"|\"x\": \"/Users/me\", \"theme\"|'"
+expect_failure "settings.json with a /home path" "settings.json contains a machine-specific path" \
+  "edit settings.json -e 's|\"theme\"|\"x\": \"/home/me\", \"theme\"|'"
+expect_failure "missing git diff --output rule" "misses deny rules: Bash(git diff *--output*)" \
+  "edit settings.json -e 's/git diff \\*--output/git diff *--other/'"
 expect_failure "invalid settings JSON" "settings.json is not valid JSON" \
   "echo '{' > settings.json"
 expect_failure "missing core deny rule" "misses deny rules: Read(**/.env)" \
@@ -181,7 +185,7 @@ expect_failure "missing secrets-folder txt rule" "misses deny rules: Read(**/sec
   "edit settings.json -e '/secrets.*txt/d'"
 expect_failure "missing .env variant" "misses deny rules: Read(**/.env.test)" \
   "edit settings.json -e '/\\.env\\.test)/d'"
-expect_failure "settings file missing" "settings.example.json or settings.json is required" \
+expect_failure "settings file missing" "settings.json is missing" \
   "rm settings.json"
 expect_failure "settings not an object" "misses deny rules" \
   "echo '[]' > settings.json"

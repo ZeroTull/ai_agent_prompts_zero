@@ -14,8 +14,8 @@ git clone git@github.com:ZeroTull/claude-dev.git ~/projects/claude-dev
 `install.sh` links everything into `~/.claude`, so `git pull` here updates the live config:
 - **Linked:** `CLAUDE.md`, `settings.json`, the status line, hooks, commands, agents and skills.
 - **Backups:** anything it replaces (a file, a broken link, or a link from another setup) is moved to `~/.claude/backups/setup-<timestamp>-NNN/` first.
-- **Left alone:** items Claude Code manages itself, such as `skills/synced`. It refuses to run if `~/.claude/agents` or `~/.claude/skills` is itself a link.
-- **Moved clones:** if you move the clone, run it again from the new place; it repairs the links.
+- **Left alone:** items Claude Code manages itself, such as `skills/synced`. It refuses to run if `~/.claude/agents`, `skills`, `commands` or `hooks` is itself a link.
+- **Moved clones and removed entries:** if you move the clone, run it again from the new place; it repairs the links. Links to entries that no longer exist in this repo (for example the QA agents that moved to claude-qa-automation) are backed up and removed.
 - **Uninstall:** `./install.sh --uninstall` removes its links and puts back the newest backup of each.
 - **Missing tools:** at the end it lists missing tools (`jq`, `gh`, `glab`, `python3`) and what each is for.
 
@@ -85,6 +85,14 @@ They also stop `glab ci get --with-variables` and `git diff --output`. Committed
 - **Adding an entry:** add an agent (`agents/<name>.md`), skill (`skills/<name>/SKILL.md`) or command (`commands/<name>.md`), a row in `catalog.tsv` (group `personal`, or `third-party` with its upstream URL) and a line in this README. Personal entries must include the block from `templates/safety.md`.
 - **Models:** `model:` in an agent sets its model (`opus`, `sonnet`, `haiku`, `inherit` or a full model ID).
 
+## Design decisions
+
+- **One repo per purpose.** This repo is the personal development setup; the QA test-automation set is its own self-contained repo, so it can be installed at work without anything personal.
+- **This repo owns the global files.** `CLAUDE.md` and `settings.json` are linked from here. The QA repo never takes them over, so both install side by side.
+- **Settings live in `settings.json` only.** Claude Code reads user settings and `autoMode` from that file alone, so machine-specific details are kept out of `autoMode` rather than moved to another file.
+- **Reviewers don't post or approve.** A subagent can't wait for you, and GitHub doesn't let an author approve their own PR. So `code-reviewer` returns its report, and the main session posts it as a comment.
+- **Third-party skills are pinned, not edited.** `third-party.lock` makes accidental edits fail CI; updates come from upstream.
+
 ## Development
 
 ```bash
@@ -94,4 +102,4 @@ tests/test_install.sh    # installer behavior in a temp directory
 tests/test_config.sh     # settings.json, hook wrapper, status line
 ```
 
-The scripts need only `bash`, `python3` (standard library, 3.9 or newer) and `jq`. The validator is the same code as in claude-qa-automation, except for the catalog groups it allows. CI runs all four scripts plus `shellcheck` on Linux and macOS for every PR.
+The scripts need only `bash`, `python3` (standard library, 3.9 or newer) and `jq`. The validator shares its parser and catalog checks with claude-qa-automation; here it checks only personal and third-party entries and validates `settings.json` directly. CI runs all four scripts plus `shellcheck` on Linux and macOS for every PR.
