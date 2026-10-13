@@ -136,6 +136,19 @@ assert "keeps foreign link" test -L "$CLAUDE_HOME/agents/other.md"
 assert "keeps Claude-managed folders" test -d "$CLAUDE_HOME/skills/synced"
 assert "keeps backups" test -d "$(backup_dir)"
 
+echo "restores the newest of several backups"
+home2="$TMP/home2"
+mkdir -p "$home2"
+echo '{"v": "A"}' >"$home2/settings.json"
+CLAUDE_HOME="$home2" "$REPO/install.sh" >/dev/null 2>&1
+rm "$home2/settings.json"
+echo '{"v": "B"}' >"$home2/settings.json"
+CLAUDE_HOME="$home2" "$REPO/install.sh" >/dev/null 2>&1
+assert "keeps both backups" test "$(find "$home2/backups" -name settings.json | wc -l | tr -d ' ')" = 2
+out="$(CLAUDE_HOME="$home2" "$REPO/install.sh" --uninstall 2>&1)"
+assert "restores the newer one" test "$(cat "$home2/settings.json")" = '{"v": "B"}'
+assert "keeps the older one in backups" grep -rq '"A"' "$home2/backups"
+
 echo "project install"
 proj="$TMP/proj"
 mkdir -p "$proj"

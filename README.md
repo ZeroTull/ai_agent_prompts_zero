@@ -19,7 +19,7 @@ git clone git@github.com:ZeroTull/claude-setup.git ~/projects/claude-setup
 - **Backups:** anything it replaces is moved to `~/.claude/backups/setup-<timestamp>/` first.
 - **Left alone:** items Claude Code manages itself, such as `skills/synced`.
 - **Moved clones:** if you move the clone, run it again from the new place; it repairs the links.
-- **Uninstall:** `./install.sh --uninstall` removes its links and puts back the newest backup of each, so the machine returns to its state before the install.
+- **Uninstall:** `./install.sh --uninstall` removes its links and puts back the newest backup of each, so the machine returns to its state before the install. Backups of entries that were later removed from this repo stay in `~/.claude/backups/`.
 - **Missing tools:** at the end it lists missing tools (`jq`, `gh`, `glab`, `az`, `python3`/`openpyxl`) and what each is for.
 
 Restart Claude Code afterwards.

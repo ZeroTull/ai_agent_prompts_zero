@@ -8,7 +8,22 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
-BACKUP_DIR="$CLAUDE_HOME/backups/setup-$(date +%Y%m%d-%H%M%S)"
+BACKUP_DIR=""
+
+# Picks this run's backup folder on first use. A second run in the same second gets a numbered folder,
+# so backups never overwrite each other and still sort oldest to newest.
+backup_dir() {
+  if [[ -z "$BACKUP_DIR" ]]; then
+    local base i=1
+    base="$CLAUDE_HOME/backups/setup-$(date +%Y%m%d-%H%M%S)"
+    BACKUP_DIR="$base-000"
+    while [[ -e "$BACKUP_DIR" ]]; do
+      BACKUP_DIR="$(printf '%s-%03d' "$base" "$i")"
+      i=$((i + 1))
+    done
+  fi
+  echo "$BACKUP_DIR"
+}
 
 usage() {
   local code="${1:-0}"
@@ -46,6 +61,7 @@ link_one() {
     rm "$dest"
     echo "  relinked  $rel (old target was missing)"
   elif [[ -e "$dest" || -L "$dest" ]]; then
+    backup_dir >/dev/null
     mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
     mv "$dest" "$BACKUP_DIR/$rel"
     echo "  backed up $rel"
@@ -178,7 +194,7 @@ case "${1:-}" in
     while IFS= read -r rel; do
       link_one "$rel"
     done < <(user_entries)
-    if [[ -d "$BACKUP_DIR" ]]; then
+    if [[ -n "$BACKUP_DIR" ]]; then
       echo
       echo "Replaced files were moved to $BACKUP_DIR."
       echo "If settings.json was among them, check it for changes Claude Code made (e.g. autoMode) and move"
