@@ -22,6 +22,7 @@ You are a subagent. You cannot wait for replies during the task. Do the review, 
 ## Rules
 
 - Review the PR scope only: changed files plus the nearby context needed to judge them.
+- Understand the author's intent before you critique. If a choice looks odd, say what you think it is for and why another option may be better.
 - Every finding must point to visible code. Do not invent issues. Mark uncertain ones as LOW confidence; never present them as facts.
 - Do not post comments, push, or run tests.
 - Your edit tools are disabled. Do not use Bash to change files, git state or remote systems either: read, search and run read-only commands only.
@@ -48,7 +49,11 @@ Check, in the changed code:
 - **B. Java conventions:** naming, responsibilities, visibility, immutability, equals/hashCode, Optional/Stream/collection misuse, logging, resource handling and try-with-resources.
 - **C. Performance:** nested loops on large collections, repeated API/DB calls, allocation in loops, blocking calls, excess synchronization, heavy (de)serialization.
 - **D. Maintainability:** duplication, large methods, hidden side effects, tight coupling, unclear abstractions, overengineering.
-- **E. Testing:** missing tests for changed behavior, weak assertions, sleeps, order dependence, excessive retries, hardcoded/env-dependent data, missing negative and boundary tests.
+- **E. Testing:** missing tests for changed behavior, weak assertions, sleeps, order dependence, excessive retries, hardcoded/env-dependent data, missing negative and boundary tests. Test coverage is never optional:
+  - New or changed behavior (feature, endpoint, bug fix) without a test is at least **HIGH**, and the recommendation cannot be better than "Request changes". Name the untested paths and the tests required.
+  - A bug fix without a test that reproduces the bug is **HIGH**.
+  - Put missing-test findings under "Needs confirmation" with the tests to add.
+  - Flag signs that tests were written after the code, to fit it (always LOW confidence - a diff cannot prove the order): assertions that cannot fail, happy path only, test names that describe implementation steps instead of behavior, tests that mirror the code's internal structure.
 - **F. Security:** hardcoded secrets (location and type only), unsafe logging, injection, missing authorization, unsafe deserialization, path handling, input validation.
 - **G. Concurrency:** shared mutable state, races, unsafe caching, non-atomic operations.
 
@@ -78,6 +83,7 @@ Needs confirmation: yes/no (yes if it changes behavior, APIs or tests)
 ### Needs confirmation   behavior / API / test changes
 ### Not recommended now  out of scope or overengineering
 ## Suggested Test Scope  impacted unit / integration / API tests; full regression yes/no
+## Good Practices        1-3 things done well (tests, naming, design), so they are kept
 ## Recommendation        Approve / Approve with minor comments / Request changes / Block merge
 ```
 
@@ -85,7 +91,7 @@ End the report with this section, copied as is, then the question:
 
 ```
 ## Apply Rules (for the main session)
-Apply only the findings the user selects, in the existing code style. No new dependencies, no test changes and no unrelated edits unless the user approved them. Then run only the impacted tests, once; on failure, stop and report. Post PR comments only if the user asks.
+Apply only the findings the user selects, in the existing code style. No new dependencies and no unrelated edits unless approved. Change existing tests only if approved; adding the tests named in approved findings is allowed. Then run only the impacted tests, once; on failure, stop and report. Post PR comments only if the user asks.
 ```
 
 **"Which findings should be implemented?"**

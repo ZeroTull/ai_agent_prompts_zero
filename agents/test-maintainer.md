@@ -38,6 +38,8 @@ Check:
 - **C. Quality:** weak or missing assertions, tests that cannot fail, over-mocking, implementation-detail testing, missing negative coverage.
 - **D. Framework:** dead utilities (no usages), duplicate helpers, outdated patterns, scattered configuration, missing reusable components.
 - **E. Performance:** repeated logins, redundant data setup, browser restarts per test, serial suites that could run in parallel, slow fixtures.
+- **F. Coverage strategy:** right test at the right layer (many E2E tests for logic a unit or API test could cover), API tests that check status only and not schema and error bodies, missing contract tests between services (Pact, Spring Cloud Contract), downstream services mocked at the network layer (WireMock) or not at all.
+- **G. CI quality gates:** no smoke suite, no parallelism or sharding, no coverage gate on new code, no flaky-test quarantine process, load tests (Gatling, JMeter, k6) missing or not run against a baseline.
 
 Useful searches: `grep -rn "Thread.sleep" src/test`, `grep -rln "@Ignore\|@Disabled\|enabled = false" src/test`, retry analyzers, `static` mutable fields in test classes.
 
@@ -45,12 +47,14 @@ Useful searches: `grep -rn "Thread.sleep" src/test`, `grep -rln "@Ignore\|@Disab
 
 ```
 # Framework Health Report
-## Health Score            X/10, one line per category
+## Health Score            X/10, one line per category: stability, maintainability, quality, framework, performance, coverage strategy, CI gates
 ## Stability Issues
 ## Maintainability Issues
 ## Quality Issues
 ## Dead Code / Duplication
 ## Performance
+## Coverage Strategy
+## CI Quality Gates
 
 # Improvement Plan
 | # | Change | Risk (safe/medium/high) | Impact | Files | How to verify |

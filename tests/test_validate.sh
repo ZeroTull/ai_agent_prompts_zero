@@ -54,6 +54,20 @@ expect_failure "undocumented agent" "not listed in README.md" \
   "sed 's/^name: pr-reviewer/name: new-agent/' agents/pr-reviewer.md > agents/new-agent.md && printf '%s\n' '\`new-agent\`' >> templates/CLAUDE.md"
 expect_failure "invalid settings JSON" "settings.example.json is not valid JSON" \
   "echo '{' > settings.example.json"
+expect_failure "missing core deny rule" "misses deny rules: Read(**/.env)" \
+  "edit settings.example.json -e '/\"Read(\\*\\*\\/.env)\"/d'"
+expect_failure "missing secrets-folder rule" "misses deny rules: Read(**/secrets/**/*.yaml)" \
+  "edit settings.example.json -e '/secrets.*yaml/d'"
+expect_failure "missing secrets-folder txt rule" "misses deny rules: Read(**/secrets/**/*.txt)" \
+  "edit settings.example.json -e '/secrets.*txt/d'"
+expect_failure "missing .env variant" "misses deny rules: Read(**/.env.test)" \
+  "edit settings.example.json -e '/\\.env\\.test)/d'"
+expect_failure "settings file missing" "settings.example.json is missing" \
+  "rm settings.example.json"
+expect_failure "settings not an object" "misses deny rules" \
+  "echo '[]' > settings.example.json"
+expect_failure ".env template wildcard" "denies .env templates" \
+  "edit settings.example.json -e 's|\"Read(\\*\\*/.env.local)\"|\"Read(**/.env.*)\"|'"
 
 echo "accepts"
 copy="$TMP/full_model_id"

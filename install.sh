@@ -97,6 +97,41 @@ copy_if_absent() {
   fi
 }
 
+# Reports optional tools the agents use. Never fails the install.
+check_dependencies() {
+  local cmd purpose
+  echo
+  echo "Dependency check:"
+  while IFS='|' read -r cmd purpose; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+      echo "  found     $cmd"
+    else
+      echo "  missing   $cmd ($purpose)"
+    fi
+  done <<'DEPS'
+claude|Claude Code itself
+git|diffs, PR reviews
+az|Azure DevOps work items, PRs and pipelines - or use the Azure DevOps MCP server
+gh|GitHub PRs and Actions runs
+python3|Excel requirements in /test-developer
+DEPS
+  local py
+  py="$(command -v python3 || true)"
+  # On macOS without Command Line Tools, /usr/bin/python3 is a stub that opens an install dialog.
+  # The QA_* variables exist so tests can simulate that machine.
+  if [[ "$py" == "${QA_PY_STUB:-/usr/bin/python3}" && "${QA_OS:-$(uname -s)}" == Darwin ]] &&
+    ! "${QA_XCODE_SELECT:-xcode-select}" -p >/dev/null 2>&1; then
+    echo "  missing   python3 (only the macOS stub is installed: xcode-select --install or brew install python)"
+  elif [[ -n "$py" ]] && ! "$py" -c "import openpyxl" >/dev/null 2>&1; then
+    echo "  missing   openpyxl (Excel requirements in /test-developer: pip3 install --user openpyxl)"
+  fi
+  # Checks the extension folder instead of running az, which can be slow to start.
+  local azext="${AZURE_EXTENSION_DIR:-$HOME/.azure/cliextensions}/azure-devops"
+  if command -v az >/dev/null 2>&1 && [[ -z "$(ls -A "$azext" 2>/dev/null)" ]]; then
+    echo "  missing   az azure-devops extension (az extension add --name azure-devops)"
+  fi
+}
+
 uninstall() {
   local n=0 link target
   for link in "$CLAUDE_HOME"/agents/* "$CLAUDE_HOME"/skills/*; do
@@ -117,6 +152,7 @@ case "${1:-}" in
   "")
     install_target="$CLAUDE_HOME"
     each_entry link_one "$install_target"
+    check_dependencies
     echo
     echo "Next: merge settings.example.json into $CLAUDE_HOME/settings.json (deny rules for secrets)."
     ;;
@@ -133,6 +169,7 @@ case "${1:-}" in
     each_entry copy_one "$project/.claude" "$update"
     copy_if_absent "$REPO/settings.example.json" "$project/.claude/settings.json" "merge settings.example.json by hand"
     copy_if_absent "$REPO/templates/CLAUDE.md" "$project/CLAUDE.md" "add the sections from templates/CLAUDE.md by hand"
+    check_dependencies
     echo
     echo "Note: agents or skills removed from this repo are not deleted from $project/.claude - remove them by hand."
     echo "Next: open Claude Code in $project and run /qa-conventions."
