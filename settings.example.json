@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git merge-base *)",
+      "Bash(mvn test *)",
+      "Bash(mvn -q test *)",
+      "Bash(./gradlew test *)",
+      "Bash(az boards work-item show *)",
+      "Bash(az boards query *)",
+      "Bash(az repos pr show *)",
+      "Bash(az repos pr list *)",
+      "Bash(az pipelines runs show *)",
+      "Bash(az pipelines runs list *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*-token.json)",
+      "Read(**/secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.p12)",
+      "Read(**/*.pfx)",
+      "Read(**/*.jks)",
+      "Read(**/*.keystore)",
+      "Read(**/.npmrc)",
+      "Read(~/.netrc)",
+      "Read(~/.git-credentials)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.docker/config.json)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.azure/**)",
+      "Read(~/.m2/settings.xml)",
+      "Read(~/.gradle/gradle.properties)",
+      "Bash(rm -rf *)"
+    ]
+  }
+}
