@@ -22,7 +22,7 @@ Not every file here is something you paste into a chat. There are two kinds:
 
 ## Where Claude Code looks for agents
 
-Claude Code loads agents and skills only from these locations:
+By default, Claude Code loads agents and skills from these locations:
 
 | Location | Scope |
 |---|---|
@@ -54,11 +54,13 @@ Run `/agents` inside Claude Code to see which agents it found.
    claude
    ```
 2. Paste the whole contents of `ecosystem_prompt`, then add this at the end and send:
-   > Every SKILL.md must start with YAML frontmatter containing `name` and `description`. Also add `.claude/skills` as a symlink to `.agents/skills` so Claude Code loads the skills.
+   > Every SKILL.md must start with YAML frontmatter containing `name` and `description`. Also add `.claude/skills` as a relative symlink to `../.agents/skills` so Claude Code loads the skills.
 3. Replace the generated PR review skill with the full agent instructions. Paste the contents of `pr_review_agent_prompt` with:
    > Replace the body of `.agents/skills/pr-review-agent/SKILL.md` with these instructions. Keep the frontmatter.
 4. *(Optional)* Do the same with `test_developer_agent_prompt` and `test_maintainer_agent_prompt`, as detailed specs for the `test-developer` and `test-maintainer` skills.
 5. Restart Claude Code and check that the skills show up (type `/` to see them in the command list).
+
+> **Windows:** git symlinks don't work in every Windows checkout. If the skills don't show up, ask Claude to copy `.agents/skills` into `.claude/skills` instead.
 
 ### Option B: PR reviewer only (simplest)
 
@@ -70,7 +72,7 @@ mkdir -p .claude/agents
 {
   printf -- '---\nname: pr-reviewer\ndescription: Reviews Azure DevOps Java PRs. Use when given a PR URL.\n---\n\n'
   cat "$PROMPTS/pr_review_agent_prompt"
-} > /tmp/pr-reviewer.md && mv /tmp/pr-reviewer.md .claude/agents/pr-reviewer.md
+} > .claude/agents/pr-reviewer.md.tmp && mv .claude/agents/pr-reviewer.md.tmp .claude/agents/pr-reviewer.md
 ```
 
 For a personal agent that works in every repo, use `~/.claude/agents/` instead of `.claude/agents/`.
@@ -81,7 +83,7 @@ For a personal agent that works in every repo, use `~/.claude/agents/` instead o
 
 Generated config files (`.agents/configs/*.json`) contain placeholders only. Before you put real tokens in them:
 
-1. Add the files to `.gitignore`, e.g. `.agents/configs/*-token.json`.
+1. Add the files to `.gitignore`: `.agents/configs/*.json`. This covers `ado-config.json` and `mcp-config.json` too, since they can hold access tokens. Keep committed examples in `.agents/configs/templates/`.
 2. Fill in your real values.
 3. Run `git status` and make sure the token files aren't listed. If they were committed earlier, run `git rm --cached <file>`.
 
