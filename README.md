@@ -30,7 +30,7 @@ There is nothing to generate. Install once and they are available in every repo.
 ## How approvals work
 
 - **Skills** stop at each gate ("Proceed with these 4 tests?") and continue when you answer.
-- **Agents** can't pause mid-task, so they finish with a report and a question such as "Which findings should be implemented?". The report ends with "Apply Rules" for the main conversation. Answer in the same chat ("apply 1, 3 and 5"), and Claude applies only those items, following those rules, then runs the impacted tests.
+- **Agents** can't pause mid-task, so they finish with a report and a question such as "Which findings should be implemented?". The `pr-reviewer` and `test-maintainer` reports end with "Apply Rules" for the main conversation. Answer in the same chat ("apply 1, 3 and 5"), and Claude applies only those items, following those rules, then runs the impacted tests.
 
 Nothing is written, run, posted to ADO or pushed until you say so.
 

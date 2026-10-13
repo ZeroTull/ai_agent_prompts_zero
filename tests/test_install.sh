@@ -119,6 +119,13 @@ run --project "$proj" --update
 assert "skips symlinked entry" grep -q "SKIP .*skills/$a_skill (is a symlink" <<<"$out"
 assert "symlink untouched" test "$(readlink "$proj/.claude/skills/$a_skill")" = "$TMP"
 
+echo "project entry of a different type"
+rm "$proj/.claude/skills/$a_skill"
+echo "not a dir" >"$proj/.claude/skills/$a_skill"
+run --project "$proj" --update
+assert "skips entry of a different type" grep -q "SKIP .*skills/$a_skill (exists as a different type" <<<"$out"
+assert "file untouched" test "$(cat "$proj/.claude/skills/$a_skill")" = "not a dir"
+
 echo "arguments"
 run --help
 assert "--help exits 0" test "$rc" = 0

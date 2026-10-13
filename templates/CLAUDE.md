@@ -20,7 +20,7 @@ Read `.ai/context/conventions.md` before drafting tickets, test cases, PR text o
 | Set up or update conventions | `/qa-conventions` |
 | Monthly accuracy check of the agents | `/agent-calibration` |
 
-Agents do not change anything; they return a report that ends with "Apply Rules". When the user approves items from it, apply only those items here, following those rules.
+Agents do not change anything; they return a report. The `pr-reviewer` and `test-maintainer` reports end with "Apply Rules". When the user approves items from it, apply only those items here, following those rules.
 
 ## Working rules
 

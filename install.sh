@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installs the QA agents and skills for Claude Code.
 #   ./install.sh                             symlink into ~/.claude (all your repos, updates with git pull)
-#   ./install.sh --project <path> [--update] copy into <path>/.claude; --update refreshes changed copies
+#   ./install.sh --project <path> [--update] copy into <path>/.claude; --update replaces changed copies (local edits included)
 #   ./install.sh --uninstall                 remove symlinks created by the user-level install
 set -euo pipefail
 
@@ -49,10 +49,14 @@ link_one() {
   fi
 }
 
+kind() { if [[ -d "$1" ]]; then echo dir; else echo file; fi; }
+
 copy_one() {
   local src="$1" dest="$2" update="$3"
   if [[ -L "$dest" ]]; then
     echo "  SKIP      $dest (is a symlink - remove it to install a copy)"
+  elif [[ -e "$dest" && "$(kind "$src")" != "$(kind "$dest")" ]]; then
+    echo "  SKIP      $dest (exists as a different type - remove it to install)"
   elif [[ ! -e "$dest" ]]; then
     cp -R "$src" "$dest"
     echo "  copied    $dest"
