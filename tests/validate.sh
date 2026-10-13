@@ -2,172 +2,313 @@
 # Checks that every agent, skill and command is cataloged, loadable by Claude Code, documented,
 # and that our own entries carry the safety rules. Also checks both settings files.
 # Usage: tests/validate.sh [repo-dir]   (defaults to this repo)
-# Runs as one Ruby process so the whole check stays fast.
+# Needs only python3 (standard library). Runs as one process so the whole check stays fast.
 set -uo pipefail
 
 REPO="$(cd "${1:-$(dirname "${BASH_SOURCE[0]}")/..}" && pwd)"
 
-# -E UTF-8: read files as UTF-8 even under LANG=C (the entries contain non-ASCII characters).
-exec ruby -E UTF-8 -ryaml -rjson -rdigest - "$REPO" <<'RUBY'
-repo = ARGV[0]
+# -X utf8: read files as UTF-8 even under LANG=C (the entries contain non-ASCII characters).
+exec python3 -X utf8 - "$REPO" <<'PYTHON'
+import hashlib
+import json
+import os
+import re
+import sys
+
+repo = sys.argv[1]
 errors = []
-err = ->(msg) { errors << msg }
-rel = ->(path) { path.delete_prefix("#{repo}/") }
-read = ->(path) { File.exist?(path) ? File.read(path) : "" }
+err = errors.append
 
-safety = read.call("#{repo}/templates/safety.md").strip
-err.call("templates/safety.md missing or empty") if safety.empty?
-readme = read.call("#{repo}/README.md")
-template = read.call("#{repo}/templates/CLAUDE.md")
-listed = ->(name, text) { text.match?(/`\/?#{Regexp.escape(name)}`/) }
 
-# SHA-256 over every file in a skill folder (sorted relative paths and contents), skipping git-ignored junk.
-def tree_digest(dir)
-  files = Dir.glob("#{dir}/**/*", File::FNM_DOTMATCH).select { |f| File.file?(f) }
-  files = files.reject { |f| File.basename(f) == ".DS_Store" || f.include?("/__pycache__/") || f.end_with?(".pyc") }.sort
-  Digest::SHA256.hexdigest(files.map { |f| "#{f.delete_prefix("#{dir}/")}\0#{File.binread(f)}" }.join("\0"))
-end
+def rel(path):
+    return os.path.relpath(path, repo)
+
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return ""
+
+
+# ── frontmatter ──────────────────────────────────────────────────────────────
+# A strict parser for the YAML subset that agent and skill frontmatter uses: top-level `key: value`
+# with plain, "double-quoted" or 'single-quoted' values, folded (>) and literal (|) block scalars,
+# and one level of nested `key: value` mappings. Anything else is rejected, so a file that passes
+# here also parses as YAML in Claude Code.
+
+class YamlError(Exception):
+    pass
+
+
+KEY = re.compile(r"^([A-Za-z0-9_-]+):(?: (.*))?$")
+RESERVED_START = tuple("[]{}&*!%@`|>,")
+
+
+DOUBLE = re.compile(r'"(?:[^"\\]|\\.)*"')
+SINGLE = re.compile(r"'(?:[^']|'')*'")
+TRAILER = re.compile(r"\s*(#.*)?")
+
+
+def scalar(raw, lineno):
+    v = raw.strip()
+    if v.startswith(('"', "'")):
+        m = (DOUBLE if v[0] == '"' else SINGLE).match(v)
+        if not m:
+            raise YamlError(f"unterminated quoted string on line {lineno}")
+        if not TRAILER.fullmatch(v[m.end():]):
+            raise YamlError(f"unexpected text after quoted string on line {lineno}")
+        if v[0] == "'":
+            return m.group(0)[1:-1].replace("''", "'")
+        try:
+            return json.loads(m.group(0))
+        except ValueError:
+            raise YamlError(f"bad double-quoted string on line {lineno}")
+    v = re.sub(r"\s+#.*$", "", v)
+    if ": " in v or v.endswith(":"):
+        raise YamlError(f"mapping values are not allowed in this context on line {lineno}")
+    if v.startswith(RESERVED_START):
+        raise YamlError(f"plain value on line {lineno} starts with a reserved character; quote it")
+    return v
+
+
+def parse_frontmatter(text):
+    if "\t" in text:
+        raise YamlError("tabs are not allowed")
+    lines = text.split("\n")
+    data, i = {}, 0
+    while i < len(lines):
+        line, lineno = lines[i], i + 1
+        if not line.strip() or line.lstrip().startswith("#"):
+            i += 1
+            continue
+        m = KEY.match(line)
+        if not m:
+            raise YamlError(f"unexpected line {lineno}: {line.strip()[:40]}")
+        key, value = m.group(1), (m.group(2) or "").strip()
+        if key in data:
+            raise YamlError(f"duplicate key '{key}' on line {lineno}")
+        i += 1
+        block = []
+        while i < len(lines) and (lines[i].startswith(" ") or not lines[i].strip()):
+            block.append(lines[i])
+            i += 1
+        while block and not block[-1].strip():
+            block.pop()
+        if re.fullmatch(r"[>|][+-]?", value):
+            if not block:
+                raise YamlError(f"empty block scalar for '{key}' on line {lineno}")
+            body = [b.strip() for b in block]
+            data[key] = " ".join(b for b in body if b) if value[0] == ">" else "\n".join(body)
+        elif value == "":
+            nested = {}
+            for n, b in enumerate(block, start=lineno + 1):
+                if not b.strip():
+                    continue
+                nm = KEY.match(b.strip())
+                if not nm:
+                    raise YamlError(f"unexpected nested line {n}")
+                nested[nm.group(1)] = scalar(nm.group(2) or "", n)
+            data[key] = nested if nested else None
+        else:
+            if block:
+                raise YamlError(f"unexpected indented line after '{key}' on line {lineno + 1}")
+            data[key] = scalar(value, lineno)
+    return data
+
+
+def check_frontmatter(file, expected):
+    m = re.match(r"\A---\n(.*?)\n---\n", read(file), re.S)
+    if not m:
+        return err(f"{rel(file)}: missing frontmatter block")
+    try:
+        data = parse_frontmatter(m.group(1))
+    except YamlError as e:
+        return err(f"{rel(file)}: invalid YAML: {e}")
+    name, desc, model = (re.sub(r"\s+", " ", str(data.get(k) or "")) for k in ("name", "description", "model"))
+    if name != expected:
+        err(f"{rel(file)}: name '{name}' does not match '{expected}'")
+    if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", name):
+        err(f"{rel(file)}: name '{name}' is not kebab-case")
+    if len(desc) < 40:
+        err(f"{rel(file)}: description missing or too short")
+    if model and not re.fullmatch(r"inherit|opus|sonnet|haiku|claude-[a-z0-9.-]+", model):
+        err(f"{rel(file)}: unknown model '{model}'")
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+safety = read(f"{repo}/templates/safety.md").strip()
+if not safety:
+    err("templates/safety.md missing or empty")
+readme = read(f"{repo}/README.md")
+template = read(f"{repo}/templates/CLAUDE.md")
+
+
+def listed(name, text):
+    return re.search(r"`/?" + re.escape(name) + "`", text) is not None
+
+
+def entry_file(name, kind):
+    return {"agent": f"{repo}/agents/{name}.md",
+            "skill": f"{repo}/skills/{name}/SKILL.md",
+            "command": f"{repo}/commands/{name}.md"}[kind]
+
+
+def tree_digest(directory):
+    """SHA-256 over every file in a skill folder (sorted relative paths and contents), skipping git-ignored junk."""
+    files = []
+    for root, _, names in os.walk(directory):
+        for n in names:
+            path = os.path.join(root, n)
+            if n == ".DS_Store" or n.endswith(".pyc") or "/__pycache__/" in path + "/":
+                continue
+            files.append(path)
+    parts = []
+    for path in sorted(files, key=lambda p: os.path.relpath(p, directory).encode()):
+        with open(path, "rb") as f:
+            parts.append(os.path.relpath(path, directory).encode() + b"\0" + f.read())
+    return hashlib.sha256(b"\0".join(parts)).hexdigest()
+
 
 lock = {}
-lock_path = "#{repo}/third-party.lock"
-if File.exist?(lock_path)
-  File.read(lock_path).lines.map(&:chomp).reject { |l| l.empty? || l.start_with?("#") }.each do |l|
-    n, sha = l.split("\t")
-    lock[n] = sha
-  end
-else
-  err.call("third-party.lock missing")
-end
-third_party = []
-
-def entry_file(repo, name, kind)
-  { "agent" => "#{repo}/agents/#{name}.md",
-    "skill" => "#{repo}/skills/#{name}/SKILL.md",
-    "command" => "#{repo}/commands/#{name}.md" }[kind]
-end
-
-check_frontmatter = lambda do |file, expected|
-  m = File.read(file).match(/\A---\n(.*?)\n---\n/m)
-  return err.call("#{rel.call(file)}: missing frontmatter block") unless m
-  begin
-    data = YAML.safe_load(m[1])
-  rescue Psych::Exception => e
-    return err.call("#{rel.call(file)}: invalid YAML: #{e.message.lines.first.strip}")
-  end
-  return err.call("#{rel.call(file)}: frontmatter is not a mapping") unless data.is_a?(Hash)
-  name, desc, model = data.values_at("name", "description", "model").map { |v| v.to_s.gsub(/\s+/, " ") }
-  err.call("#{rel.call(file)}: name '#{name}' does not match '#{expected}'") unless name == expected
-  err.call("#{rel.call(file)}: name '#{name}' is not kebab-case") unless name.match?(/\A[a-z0-9]+(-[a-z0-9]+)*\z/)
-  err.call("#{rel.call(file)}: description missing or too short") if desc.length < 40
-  unless model.empty? || model.match?(/\A(inherit|opus|sonnet|haiku|claude-[a-z0-9.-]+)\z/)
-    err.call("#{rel.call(file)}: unknown model '#{model}'")
-  end
-end
+lock_path = f"{repo}/third-party.lock"
+if os.path.exists(lock_path):
+    for line in read(lock_path).splitlines():
+        if line and not line.startswith("#"):
+            n, _, sha = line.partition("\t")
+            lock[n] = sha
+else:
+    err("third-party.lock missing")
 
 # ── catalog ──────────────────────────────────────────────────────────────────
-cataloged = {}
-catalog = "#{repo}/catalog.tsv"
-if !File.exist?(catalog)
-  err.call("catalog.tsv missing")
-else
-  lines = File.read(catalog).lines.map(&:chomp)
-  err.call("catalog.tsv: bad header") unless lines.first == "name\tkind\tgroup\tsource"
-  lines.drop(1).reject(&:empty?).each do |line|
-    name, kind, group, source, *extra = line.split("\t", -1)
-    row = "catalog.tsv: #{name}"
-    err.call("#{row}: more than 4 columns") unless extra.empty?
-    next err.call("#{row}: unknown kind '#{kind}'") unless %w[agent skill command].include?(kind)
-    err.call("#{row}: unknown group '#{group}'") unless %w[qa personal third-party].include?(group)
-    if group == "third-party"
-      err.call("#{row}: third-party entry needs a source URL") unless source.to_s.start_with?("https://")
-      third_party << name
-    elsif source != "-"
-      err.call("#{row}: source must be '-' for our own entries")
-    end
-    err.call("#{row}: duplicate entry") if cataloged.key?("#{kind}:#{name}")
-    cataloged["#{kind}:#{name}"] = true
+cataloged, third_party = set(), []
+catalog = f"{repo}/catalog.tsv"
+if not os.path.exists(catalog):
+    err("catalog.tsv missing")
+else:
+    lines = read(catalog).split("\n")
+    if lines[0] != "name\tkind\tgroup\tsource":
+        err("catalog.tsv: bad header")
+    for line in lines[1:]:
+        if not line:
+            continue
+        cols = line.split("\t")
+        name, kind, group, source = (cols + ["", "", "", ""])[:4]
+        row = f"catalog.tsv: {name}"
+        if len(cols) > 4:
+            err(f"{row}: more than 4 columns")
+        if kind not in ("agent", "skill", "command"):
+            err(f"{row}: unknown kind '{kind}'")
+            continue
+        if group not in ("qa", "personal", "third-party"):
+            err(f"{row}: unknown group '{group}'")
+        if group == "third-party":
+            if not source.startswith("https://"):
+                err(f"{row}: third-party entry needs a source URL")
+            third_party.append(name)
+        elif source != "-":
+            err(f"{row}: source must be '-' for our own entries")
+        if f"{kind}:{name}" in cataloged:
+            err(f"{row}: duplicate entry")
+        cataloged.add(f"{kind}:{name}")
 
-    file = entry_file(repo, name, kind)
-    next err.call("#{row}: #{rel.call(file)} does not exist") unless File.file?(file)
-    check_frontmatter.call(file, name) unless kind == "command"
-    if group != "third-party" && !File.read(file).include?(safety)
-      err.call("#{rel.call(file)}: does not contain the block from templates/safety.md verbatim")
-    end
-    err.call("#{name} not listed in README.md") unless listed.call(name, readme)
-    err.call("#{name} not listed in templates/CLAUDE.md") if group == "qa" && !listed.call(name, template)
-  end
-end
+        file = entry_file(name, kind)
+        if not os.path.isfile(file):
+            err(f"{row}: {rel(file)} does not exist")
+            continue
+        if kind != "command":
+            check_frontmatter(file, name)
+        if group != "third-party" and safety not in read(file):
+            err(f"{rel(file)}: does not contain the block from templates/safety.md verbatim")
+        if not listed(name, readme):
+            err(f"{name} not listed in README.md")
+        if group == "qa" and not listed(name, template):
+            err(f"{name} not listed in templates/CLAUDE.md")
 
 # Third-party skills are vendored unchanged: their content must match third-party.lock.
-third_party.each do |name|
-  dir = "#{repo}/skills/#{name}"
-  next unless File.directory?(dir)
-  actual = tree_digest(dir)
-  if lock[name].nil?
-    err.call("third-party.lock has no entry for #{name} (#{name}\t#{actual})")
-  elsif lock[name] != actual
-    err.call("skills/#{name} differs from third-party.lock - third-party skills must stay unchanged (now #{actual})")
-  end
-end
-(lock.keys - third_party).each { |name| err.call("third-party.lock lists #{name}, which is not a third-party entry") }
+for name in third_party:
+    directory = f"{repo}/skills/{name}"
+    if not os.path.isdir(directory):
+        continue
+    actual = tree_digest(directory)
+    if name not in lock:
+        err(f"third-party.lock has no entry for {name} ({name}\t{actual})")
+    elif lock[name] != actual:
+        err(f"skills/{name} differs from third-party.lock - third-party skills must stay unchanged (now {actual})")
+for name in sorted(set(lock) - set(third_party)):
+    err(f"third-party.lock lists {name}, which is not a third-party entry")
+
 
 # Every entry on disk must be cataloged.
+def listdir(path):
+    return sorted(os.listdir(path)) if os.path.isdir(path) else []
+
+
 entries = 0
-Dir.glob("#{repo}/agents/*.md").sort.each do |f|
-  entries += 1
-  err.call("agents/#{File.basename(f)} is not in catalog.tsv") unless cataloged["agent:#{File.basename(f, '.md')}"]
-end
-Dir.glob("#{repo}/skills/*/").sort.each do |d|
-  entries += 1
-  name = File.basename(d)
-  # Exact-case check: macOS finds skill.md as SKILL.md, Linux does not.
-  err.call("skills/#{name}: missing SKILL.md (exact case)") unless Dir.children(d).include?("SKILL.md")
-  err.call("skills/#{name} is not in catalog.tsv") unless cataloged["skill:#{name}"]
-end
-Dir.glob("#{repo}/commands/*.md").sort.each do |f|
-  entries += 1
-  err.call("commands/#{File.basename(f)} is not in catalog.tsv") unless cataloged["command:#{File.basename(f, '.md')}"]
-end
+for f in listdir(f"{repo}/agents"):
+    if f.endswith(".md"):
+        entries += 1
+        if f"agent:{f[:-3]}" not in cataloged:
+            err(f"agents/{f} is not in catalog.tsv")
+for d in listdir(f"{repo}/skills"):
+    if os.path.isdir(f"{repo}/skills/{d}"):
+        entries += 1
+        # Exact-case check: macOS finds skill.md as SKILL.md, Linux does not.
+        if "SKILL.md" not in os.listdir(f"{repo}/skills/{d}"):
+            err(f"skills/{d}: missing SKILL.md (exact case)")
+        if f"skill:{d}" not in cataloged:
+            err(f"skills/{d} is not in catalog.tsv")
+for f in listdir(f"{repo}/commands"):
+    if f.endswith(".md"):
+        entries += 1
+        if f"command:{f[:-3]}" not in cataloged:
+            err(f"commands/{f} is not in catalog.tsv")
+
 
 # ── settings ─────────────────────────────────────────────────────────────────
 # settings.example.json: core secret rules present, committed .env templates readable.
 # settings.json: valid, portable, and denies at least everything the example denies.
-load_settings = lambda do |path|
-  data = JSON.parse(File.read(path))
-  perms = data.is_a?(Hash) ? data["permissions"] : nil
-  [data, perms.is_a?(Hash) && perms["deny"].is_a?(Array) ? perms["deny"] : []]
-rescue Errno::ENOENT
-  err.call("#{File.basename(path)} is missing")
-  nil
-rescue JSON::ParserError
-  err.call("#{File.basename(path)} is not valid JSON")
-  nil
-end
+def load_settings(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        err(f"{os.path.basename(path)} is missing")
+        return None
+    except ValueError:
+        err(f"{os.path.basename(path)} is not valid JSON")
+        return None
+    perms = data.get("permissions") if isinstance(data, dict) else None
+    deny = perms.get("deny") if isinstance(perms, dict) else None
+    return data, deny if isinstance(deny, list) else []
 
-example = load_settings.call("#{repo}/settings.example.json")
-if example
-  deny = example[1]
-  required = ["Read(**/.env)", "Read(**/.env.local)", "Read(**/.env.production)", "Read(**/.env.test)",
-              "Read(**/secrets/**/*.yaml)", "Read(**/secrets/**/*.yml)", "Read(**/secrets/**/*.json)",
-              "Read(**/secrets/**/*.properties)", "Read(**/secrets/**/*.env)", "Read(**/secrets/**/*.conf)",
-              "Read(**/secrets/**/*.txt)",
-              "Read(~/.ssh/**)", "Read(~/.azure/**)", "Read(~/.config/gh/**)", "Read(**/*.pem)"]
-  missing = required - deny
-  err.call("settings.example.json misses deny rules: #{missing.join(', ')}") unless missing.empty?
-  wild = deny.grep(/\ARead\((\*\*\/)?\.env\.\*\)\z/)
-  err.call("settings.example.json denies .env templates via #{wild.join(', ')}") unless wild.empty?
-  full = load_settings.call("#{repo}/settings.json")
-  if full
-    gap = deny - full[1]
-    err.call("settings.json misses deny rules from settings.example.json: #{gap.join(', ')}") unless gap.empty?
-    err.call("settings.json contains a machine-specific /Users/ path") if JSON.generate(full[0]).include?("/Users/")
-  end
-end
 
-errors.each { |e| puts "FAIL: #{e}" }
-if errors.empty?
-  puts "validate: all checks passed (#{entries} entries)"
-else
-  exit 1
-end
-RUBY
+example = load_settings(f"{repo}/settings.example.json")
+if example:
+    deny = example[1]
+    required = ["Read(**/.env)", "Read(**/.env.local)", "Read(**/.env.production)", "Read(**/.env.test)",
+                "Read(**/secrets/**/*.yaml)", "Read(**/secrets/**/*.yml)", "Read(**/secrets/**/*.json)",
+                "Read(**/secrets/**/*.properties)", "Read(**/secrets/**/*.env)", "Read(**/secrets/**/*.conf)",
+                "Read(**/secrets/**/*.txt)",
+                "Read(~/.ssh/**)", "Read(~/.azure/**)", "Read(~/.config/gh/**)", "Read(**/*.pem)"]
+    missing = [r for r in required if r not in deny]
+    if missing:
+        err(f"settings.example.json misses deny rules: {', '.join(missing)}")
+    wild = [r for r in deny if re.fullmatch(r"Read\((\*\*/)?\.env\.\*\)", r)]
+    if wild:
+        err(f"settings.example.json denies .env templates via {', '.join(wild)}")
+    full = load_settings(f"{repo}/settings.json")
+    if full:
+        gap = [r for r in deny if r not in full[1]]
+        if gap:
+            err(f"settings.json misses deny rules from settings.example.json: {', '.join(gap)}")
+        if "/Users/" in json.dumps(full[0]):
+            err("settings.json contains a machine-specific /Users/ path")
+
+for e in errors:
+    print(f"FAIL: {e}")
+if errors:
+    sys.exit(1)
+print(f"validate: all checks passed ({entries} entries)")
+PYTHON

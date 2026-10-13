@@ -196,4 +196,4 @@ tests/test_install.sh    # installer behavior in a temp directory
 tests/test_config.sh     # settings.json, hook wrapper, status line
 ```
 
-The validator needs Ruby (preinstalled on macOS and GitHub runners) and files with LF line endings. CI runs all four scripts, plus `shellcheck`, on Linux and macOS for every PR.
+The validator needs only `python3` (standard library) and files with LF line endings. It parses frontmatter with a strict built-in parser for the YAML subset these files use: `key: value` lines (plain, `"double"` or `'single'` quoted), `>` and `|` blocks, and one level of nesting. Anything else is rejected, so a file that passes also loads in Claude Code. CI runs all four scripts, plus `shellcheck`, on Linux and macOS for every PR.

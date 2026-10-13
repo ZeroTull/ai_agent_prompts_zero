@@ -43,6 +43,20 @@ expect_failure "missing frontmatter" "missing frontmatter block" \
   "tail -n +6 agents/pr-reviewer.md > x && mv x agents/pr-reviewer.md"
 expect_failure "colon in description" "invalid YAML" \
   "edit agents/pr-reviewer.md -e '3s/^description: Reviews/description: Note: reviews/'"
+expect_failure "unterminated quote" "invalid YAML: unterminated quoted string" \
+  "edit agents/pr-reviewer.md -e 's/^color: purple/color: \"purple/'"
+expect_failure "text after a quoted string" "invalid YAML: unexpected text after quoted string" \
+  "edit agents/pr-reviewer.md -e 's/^color: purple/color: \"purple\" dark/'"
+expect_failure "tab in frontmatter" "invalid YAML: tabs are not allowed" \
+  "edit agents/pr-reviewer.md -e '4s/^model: opus/model:\topus/'"
+expect_failure "unquoted reserved character" "starts with a reserved character" \
+  "edit agents/pr-reviewer.md -e 's/^color: purple/color: @purple/'"
+expect_failure "stray indented line" "invalid YAML: unexpected indented line" \
+  "edit agents/pr-reviewer.md -e 's/^color: purple/color: purple\\
+  extra/'"
+expect_failure "duplicate key" "invalid YAML: duplicate key 'color'" \
+  "edit agents/pr-reviewer.md -e 's/^color: purple/color: purple\\
+color: red/'"
 expect_failure "name mismatch" "does not match 'pr-reviewer'" \
   "edit agents/pr-reviewer.md -e '2s/.*/name: reviewer/'"
 expect_failure "non-kebab name" "is not kebab-case" \
@@ -102,6 +116,16 @@ expect_failure "lock entry for a non-third-party skill" "third-party.lock lists 
   "printf 'bug-ticket\tabc\n' >> third-party.lock"
 
 echo "accepts"
+# A failing ruby stub first on PATH proves the validator needs only python3.
+mkdir -p "$TMP/noruby"
+printf '#!/bin/sh\necho ruby-called >&2\nexit 1\n' >"$TMP/noruby/ruby"
+chmod +x "$TMP/noruby/ruby"
+if PATH="$TMP/noruby:$PATH" "$REPO/tests/validate.sh" "$REPO" >/dev/null 2>&1; then echo "  pass  works without ruby"; else echo "  FAIL  needs ruby"; fail=1; fi
+copy="$TMP/yaml_shapes"
+copy_repo "$copy"
+# Folded block with a colon inside, single quotes, and a comment are all valid YAML.
+edit "$copy/agents/pr-reviewer.md" -e "s/^color: purple/color: 'purple' # theme/"
+if "$REPO/tests/validate.sh" "$copy" >/dev/null; then echo "  pass  quoted value with a comment"; else echo "  FAIL  quoted value with a comment"; fail=1; fi
 if LC_ALL=C LANG=C "$REPO/tests/validate.sh" "$REPO" >/dev/null 2>&1; then echo "  pass  C locale"; else echo "  FAIL  C locale"; fail=1; fi
 copy="$TMP/junk_files"
 copy_repo "$copy"
