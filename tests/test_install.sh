@@ -139,15 +139,18 @@ assert "keeps backups" test -d "$(backup_dir)"
 echo "restores the newest of several backups"
 home2="$TMP/home2"
 mkdir -p "$home2"
+# Both runs use the same stamp, as if they ran in the same second.
 echo '{"v": "A"}' >"$home2/settings.json"
-CLAUDE_HOME="$home2" "$REPO/install.sh" >/dev/null 2>&1
+CLAUDE_HOME="$home2" BACKUP_STAMP=fixed "$REPO/install.sh" >/dev/null 2>&1
 rm "$home2/settings.json"
 echo '{"v": "B"}' >"$home2/settings.json"
-CLAUDE_HOME="$home2" "$REPO/install.sh" >/dev/null 2>&1
-assert "keeps both backups" test "$(find "$home2/backups" -name settings.json | wc -l | tr -d ' ')" = 2
+CLAUDE_HOME="$home2" BACKUP_STAMP=fixed "$REPO/install.sh" >/dev/null 2>&1
+assert "first run backs up to -000" test "$(cat "$home2/backups/setup-fixed-000/settings.json")" = '{"v": "A"}'
+assert "second run in the same second backs up to -001" test "$(cat "$home2/backups/setup-fixed-001/settings.json")" = '{"v": "B"}'
 out="$(CLAUDE_HOME="$home2" "$REPO/install.sh" --uninstall 2>&1)"
 assert "restores the newer one" test "$(cat "$home2/settings.json")" = '{"v": "B"}'
-assert "keeps the older one in backups" grep -rq '"A"' "$home2/backups"
+assert "reports the restore from -001" grep -q "restored  settings.json (from backups/setup-fixed-001/settings.json)" <<<"$out"
+assert "keeps the older one in backups" test -f "$home2/backups/setup-fixed-000/settings.json"
 
 echo "project install"
 proj="$TMP/proj"

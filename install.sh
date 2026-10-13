@@ -10,19 +10,22 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
 BACKUP_DIR=""
 
-# Picks this run's backup folder on first use. A second run in the same second gets a numbered folder,
-# so backups never overwrite each other and still sort oldest to newest.
-backup_dir() {
-  if [[ -z "$BACKUP_DIR" ]]; then
-    local base i=1
-    base="$CLAUDE_HOME/backups/setup-$(date +%Y%m%d-%H%M%S)"
-    BACKUP_DIR="$base-000"
-    while [[ -e "$BACKUP_DIR" ]]; do
-      BACKUP_DIR="$(printf '%s-%03d' "$base" "$i")"
-      i=$((i + 1))
-    done
-  fi
-  echo "$BACKUP_DIR"
+# Sets this run's backup folder on first use: setup-<stamp>-NNN, the first free NNN. A second run in the
+# same second gets the next number, so backups never overwrite each other and sort oldest to newest.
+# BACKUP_STAMP exists so tests can force two runs into the same second.
+init_backup_dir() {
+  [[ -z "$BACKUP_DIR" ]] || return 0
+  local base i=0
+  base="$CLAUDE_HOME/backups/setup-${BACKUP_STAMP:-$(date +%Y%m%d-%H%M%S)}"
+  while :; do
+    BACKUP_DIR="$(printf '%s-%03d' "$base" "$i")"
+    [[ -e "$BACKUP_DIR" ]] || return 0
+    i=$((i + 1))
+    if [[ $i -gt 999 ]]; then
+      echo "error: more than 1000 backups for one second in $CLAUDE_HOME/backups" >&2
+      exit 1
+    fi
+  done
 }
 
 usage() {
@@ -61,7 +64,7 @@ link_one() {
     rm "$dest"
     echo "  relinked  $rel (old target was missing)"
   elif [[ -e "$dest" || -L "$dest" ]]; then
-    backup_dir >/dev/null
+    init_backup_dir
     mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
     mv "$dest" "$BACKUP_DIR/$rel"
     echo "  backed up $rel"
@@ -157,12 +160,12 @@ DEPS
   fi
 }
 
-# Prints the newest backup of <rel>, if any.
+# Prints the newest backup of <rel>, if any. Folder names sort by time under byte order (LC_ALL=C).
 latest_backup() {
-  local b found=""
-  for b in "$CLAUDE_HOME"/backups/setup-*/"$1"; do
-    if [[ -e "$b" || -L "$b" ]]; then found="$b"; fi
-  done
+  local b found
+  found="$(for b in "$CLAUDE_HOME"/backups/setup-*/"$1"; do
+    if [[ -e "$b" || -L "$b" ]]; then printf '%s\n' "$b"; fi
+  done | LC_ALL=C sort | tail -n 1)"
   [[ -n "$found" ]] && echo "$found"
 }
 
