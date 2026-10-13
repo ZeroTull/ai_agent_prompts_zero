@@ -1,19 +1,39 @@
 #!/usr/bin/env bash
-# Installs the QA agents and skills for Claude Code.
-#   ./install.sh                             symlink into ~/.claude (all your repos, updates with git pull)
-#   ./install.sh --project <path> [--update] copy into <path>/.claude; --update replaces changed copies (local edits included)
-#   ./install.sh --uninstall                 remove symlinks created by the user-level install
+# Installs this Claude Code setup.
+#   ./install.sh                             link everything into ~/.claude (git pull here updates it)
+#   ./install.sh --project <path> [--update] copy the QA agents and skills into <path>/.claude for a team
+#   ./install.sh --uninstall                 remove the links created by the user install
+# Anything the user install replaces is moved to ~/.claude/backups/setup-<timestamp>/ first.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
+BACKUP_DIR=""
+
+# Sets this run's backup folder on first use: setup-<stamp>-NNN, the first free NNN. A second run in the
+# same second gets the next number, so backups never overwrite each other and sort oldest to newest.
+# BACKUP_STAMP exists so tests can force two runs into the same second.
+init_backup_dir() {
+  [[ -z "$BACKUP_DIR" ]] || return 0
+  local base i=0
+  base="$CLAUDE_HOME/backups/setup-${BACKUP_STAMP:-$(date +%Y%m%d-%H%M%S)}"
+  while :; do
+    BACKUP_DIR="$(printf '%s-%03d' "$base" "$i")"
+    [[ -e "$BACKUP_DIR" ]] || return 0
+    i=$((i + 1))
+    if [[ $i -gt 999 ]]; then
+      echo "error: more than 1000 backups for one second in $CLAUDE_HOME/backups" >&2
+      exit 1
+    fi
+  done
+}
 
 usage() {
   local code="${1:-0}"
   if [[ "$code" -eq 0 ]]; then
-    sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'
   else
-    sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//' >&2
+    sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//' >&2
   fi
   exit "$code"
 }
@@ -23,8 +43,8 @@ die() {
   usage 1
 }
 
-# True for a broken link that points at <something>/agents/<name> or <something>/skills/<name>,
-# i.e. a link left behind by an earlier install from a repo that has since moved.
+# True for a broken link that points at <something>/<dir>/<name> where <dir>/<name> matches the link's own
+# location, i.e. a link left behind by an earlier install from a clone that has since moved.
 is_stale_link() {
   local dest="$1" target
   [[ -L "$dest" && ! -e "$dest" ]] || return 1
@@ -33,20 +53,37 @@ is_stale_link() {
   [[ "$(basename "$(dirname "$target")")" == "$(basename "$(dirname "$dest")")" ]]
 }
 
+# Links $CLAUDE_HOME/<rel> to $REPO/<rel>, backing up whatever was there.
 link_one() {
-  local src="$1" dest="$2"
+  local rel="$1" src="$REPO/$1" dest="$CLAUDE_HOME/$1"
   if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
-    echo "  ok        $dest"
-  elif is_stale_link "$dest"; then
-    rm "$dest"
-    ln -s "$src" "$dest"
-    echo "  relinked  $dest (old target was missing)"
-  elif [[ -e "$dest" || -L "$dest" ]]; then
-    echo "  SKIP      $dest (exists and is not ours - remove it to install)"
-  else
-    ln -s "$src" "$dest"
-    echo "  linked    $dest"
+    echo "  ok        $rel"
+    return
   fi
+  if is_stale_link "$dest"; then
+    rm "$dest"
+    echo "  relinked  $rel (old target was missing)"
+  elif [[ -e "$dest" || -L "$dest" ]]; then
+    init_backup_dir
+    mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+    mv "$dest" "$BACKUP_DIR/$rel"
+    echo "  backed up $rel"
+  else
+    echo "  linked    $rel"
+  fi
+  mkdir -p "$(dirname "$dest")"
+  ln -s "$src" "$dest"
+}
+
+# Prints every path the user install links, relative to the repo.
+user_entries() {
+  local f
+  for f in CLAUDE.md settings.json statusline-command.sh; do echo "$f"; done
+  for f in "$REPO"/hooks/* "$REPO"/commands/*.md "$REPO"/agents/*.md "$REPO"/skills/*/; do
+    [[ -e "$f" ]] || continue
+    f="${f%/}"
+    echo "${f#"$REPO"/}"
+  done
 }
 
 kind() { if [[ -d "$1" ]]; then echo dir; else echo file; fi; }
@@ -71,20 +108,9 @@ copy_one() {
   fi
 }
 
-# Calls "$1" for every agent file and skill directory with (src, dest, extra args...).
-each_entry() {
-  local fn="$1" target="$2" src
-  shift 2
-  mkdir -p "$target/agents" "$target/skills"
-  echo "Agents -> $target/agents"
-  for src in "$REPO"/agents/*.md; do
-    "$fn" "$src" "$target/agents/$(basename "$src")" "$@"
-  done
-  echo "Skills -> $target/skills"
-  for src in "$REPO"/skills/*/; do
-    src="${src%/}"
-    "$fn" "$src" "$target/skills/$(basename "$src")" "$@"
-  done
+# Prints "kind name" for every QA entry in the catalog.
+qa_entries() {
+  awk -F'\t' 'NR > 1 && $3 == "qa" { print $2, $1 }' "$REPO/catalog.tsv"
 }
 
 copy_if_absent() {
@@ -97,7 +123,7 @@ copy_if_absent() {
   fi
 }
 
-# Reports optional tools the agents use. Never fails the install.
+# Reports optional tools the setup uses. Never fails the install.
 check_dependencies() {
   local cmd purpose
   echo
@@ -111,8 +137,10 @@ check_dependencies() {
   done <<'DEPS'
 claude|Claude Code itself
 git|diffs, PR reviews
-az|Azure DevOps work items, PRs and pipelines - or use the Azure DevOps MCP server
+jq|status line
 gh|GitHub PRs and Actions runs
+glab|GitLab MRs in the PR workflow
+az|Azure DevOps work items, PRs and pipelines - or use the Azure DevOps MCP server
 python3|Excel requirements in /test-developer
 DEPS
   local py
@@ -132,29 +160,52 @@ DEPS
   fi
 }
 
+# Prints the newest backup of <rel>, if any. Folder names sort by time under byte order (LC_ALL=C).
+latest_backup() {
+  local b found
+  found="$(for b in "$CLAUDE_HOME"/backups/setup-*/"$1"; do
+    if [[ -e "$b" || -L "$b" ]]; then printf '%s\n' "$b"; fi
+  done | LC_ALL=C sort | tail -n 1)"
+  [[ -n "$found" ]] && echo "$found"
+}
+
+# Removes our links and puts back the newest backup of each, so the machine returns to its state before install.
 uninstall() {
-  local n=0 link target
-  for link in "$CLAUDE_HOME"/agents/* "$CLAUDE_HOME"/skills/*; do
+  local n=0 link target rel backup
+  while IFS= read -r rel; do
+    link="$CLAUDE_HOME/$rel"
     [[ -L "$link" ]] || continue
     target="$(readlink "$link")"
-    # A stale link counts as ours only if this repo ships an entry with the same name.
-    if [[ "$target" == "$REPO/"* ]] ||
-      { is_stale_link "$link" && [[ -e "$REPO/$(basename "$(dirname "$link")")/$(basename "$link")" ]]; }; then
+    if [[ "$target" == "$REPO/"* ]] || is_stale_link "$link"; then
       rm "$link"
-      echo "  removed   $link"
       n=$((n + 1))
+      if backup="$(latest_backup "$rel")"; then
+        mv "$backup" "$link"
+        echo "  restored  $rel (from ${backup#"$CLAUDE_HOME"/})"
+      else
+        echo "  removed   $rel"
+      fi
     fi
-  done
-  echo "Removed $n link(s)."
+  done < <(user_entries)
+  echo "Removed $n link(s). Older backups stay in $CLAUDE_HOME/backups/."
 }
 
 case "${1:-}" in
   "")
-    install_target="$CLAUDE_HOME"
-    each_entry link_one "$install_target"
+    echo "Linking into $CLAUDE_HOME"
+    mkdir -p "$CLAUDE_HOME"
+    while IFS= read -r rel; do
+      link_one "$rel"
+    done < <(user_entries)
+    if [[ -n "$BACKUP_DIR" ]]; then
+      echo
+      echo "Replaced files were moved to $BACKUP_DIR."
+      echo "If settings.json was among them, check it for changes Claude Code made (e.g. autoMode) and move"
+      echo "machine-specific ones to $CLAUDE_HOME/settings.local.json."
+    fi
     check_dependencies
     echo
-    echo "Next: merge settings.example.json into $CLAUDE_HOME/settings.json (deny rules for secrets)."
+    echo "Done. Restart Claude Code to pick up the new config."
     ;;
   --project)
     [[ -n "${2:-}" ]] || die "--project needs a directory"
@@ -166,7 +217,14 @@ case "${1:-}" in
       die "unexpected arguments after --project $2"
     fi
     project="$(cd "$2" && pwd)"
-    each_entry copy_one "$project/.claude" "$update"
+    mkdir -p "$project/.claude/agents" "$project/.claude/skills"
+    echo "QA agents and skills -> $project/.claude"
+    while read -r k name; do
+      case "$k" in
+        agent) copy_one "$REPO/agents/$name.md" "$project/.claude/agents/$name.md" "$update" ;;
+        skill) copy_one "$REPO/skills/$name" "$project/.claude/skills/$name" "$update" ;;
+      esac
+    done < <(qa_entries)
     copy_if_absent "$REPO/settings.example.json" "$project/.claude/settings.json" "merge settings.example.json by hand"
     copy_if_absent "$REPO/templates/CLAUDE.md" "$project/CLAUDE.md" "add the sections from templates/CLAUDE.md by hand"
     check_dependencies
