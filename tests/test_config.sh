@@ -20,7 +20,9 @@ assert "uses the status line script" jq -e '.statusLine.command | contains("stat
 # shellcheck disable=SC2016
 assert "every hook command points at the wrapper" \
   jq -e '[.hooks[][].hooks[].command] | all(. == "bash \"$HOME/.claude/hooks/tmux-claude.sh\"")' "$REPO/settings.json"
-assert "has no autoMode block (machine-specific, belongs in settings.local.json)" jq -e 'has("autoMode") | not' "$REPO/settings.json"
+# Auto mode reads autoMode only from ~/.claude/settings.json, so it lives here, without machine-specific paths.
+assert "has an autoMode environment" jq -e '.autoMode.environment | length > 0' "$REPO/settings.json"
+assert "autoMode names no machine paths" jq -e '[.autoMode.environment[] | select(test("/Users/|/home/"))] | length == 0' "$REPO/settings.json"
 
 echo "hook wrapper"
 assert "exits 0 without the plugin" bash -c "echo '{}' | TMUX_CLAUDE_HOOK=/nonexistent bash '$REPO/hooks/tmux-claude.sh'"
